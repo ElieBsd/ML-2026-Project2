@@ -1,12 +1,15 @@
 # Python
 __pycache__/
 *.py[cod]
+*.egg-info/
 .venv/
 venv/
 .ipynb_checkpoints/
 
 # Data and outputs (lab data must not be committed)
 data/
+dataset/
+*.zip
 outputs/
 runs/
 *.npz
@@ -18,3 +21,6 @@ runs/
 .DS_Store
 .vscode/
 .idea/
+
+# Experiment outputs
+results/
