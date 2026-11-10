@@ -12,9 +12,9 @@ Joakim Tutt's PhD thesis (UNIGE, 2025) models this with the **binary pattern-bas
 
 **Question: do the guarantees of the BPC model hold on real data?** We study three things, on two datasets.
 
-- **C1 - What the 3x3 model misses.** With repeated prints of the same template, we measure how much of the noise predicted by the model is in fact reproducible from print to print, and how much comes from printing or from the capture. We then learn flip-probability models with a larger context (a 5x5 table with back-off, logistic regression, gradient-boosted trees) and compare them to the 3x3 table by held-out log-likelihood. Originals only.
-- **C2 - How far a threshold holds.** A threshold is set on originals only (conformal calibration). We measure how many originals it rejects when the scan, the print run, the printing session, the printer or the phone changes, and how many originals of the new condition are needed to recalibrate.
-- **C3 - Which test against which attacker.** We re-evaluate the scores of the thesis at fixed operating points, with confidence intervals. We test a simple mechanism: a fake is the attacker's estimate of the template, printed a second time, so its error profile can be predicted from the codebook of originals. Supervised classifiers that see fakes are reported as oracle references.
+1. **What the 3x3 model misses.** With repeated prints of the same template, we measure how much of the noise predicted by the model is in fact reproducible from print to print, and how much comes from printing or from the capture. We then learn flip-probability models with a larger context (a 5x5 table with back-off, logistic regression, gradient-boosted trees) and compare them to the 3x3 table by held-out log-likelihood. Originals only.
+2. **How far a threshold holds.** A threshold is set on originals only (conformal calibration). We measure how many originals it rejects when the scan, the print run, the printing session, the printer or the phone changes, and how many originals of the new condition are needed to recalibrate.
+3. **Which test against which attacker.** We re-evaluate the scores of the thesis at fixed operating points, with confidence intervals. We test a simple mechanism: a fake is the attacker's estimate of the template, printed a second time, so its error profile can be predicted from the codebook of originals. Supervised classifiers that see fakes are reported as oracle references.
 
 Two datasets with two roles:
 - the **SIP Indigo datasets** (the data of the thesis) for measurement: repeated prints and scans, three sessions, two printers, two phones, 1440 templates;
@@ -26,9 +26,6 @@ Rules we follow:
 - the defender has no fakes: thresholds use originals only, and methods trained with fakes are labelled oracle;
 - every false acceptance rate is reported with the realized miss rate and a 95 % confidence interval;
 - fakes of the test subsets are opened once, after the methods are frozen.
-
-## Status
-Work in progress. Implemented and tested so far: binarization, 3x3 pattern index, codebook, and the data download script. The experiments are not in the repository yet.
 
 ## Setup
 Python 3.11.
