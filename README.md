@@ -6,14 +6,29 @@ EPFL CS-433 Machine Learning, Fall 2026 - Project 2 (ML4Science).
 - **Host lab:** Stochastic Information Processing (SIP) group, Université de Genève - Prof. Slava Voloshynovskiy, mentor Vitaliy Kinakh
 
 ## Topic
-Copy detection patterns (CDP) are small printed random binary codes used against counterfeiting: printing and scanning blur them in a way that a copy cannot reproduce exactly. Joakim Tutt's PhD thesis (UNIGE, 2025) models this with the **binary pattern-based channel (BPC)**: the probability that a printed symbol is read wrong depends only on its 3x3 neighbourhood in the template, and symbols are independent.
+Copy detection patterns (CDP) are small printed random binary codes used against counterfeiting: printing and scanning blur them in a way that a copy cannot reproduce exactly. To check a product, the code is captured, binarized and compared to its secret template. A symbol read with the wrong colour is called a flip.
 
-**Question: do the guarantees of the BPC model hold on real, independent data?** We work on the public Scantrust CDP dataset and test three things:
-- **H1 - independence.** Are flips over-dispersed or spatially correlated compared to what the BPC predicts?
-- **H2 - a score without fakes.** A locally most powerful (LMP) test derived from the BPC, with a per-image quality correction, compared to Hamming distance and the thesis scores.
-- **H3 - realistic thresholds.** Thresholds are set on originals only (conformal calibration). We report the false acceptance rate at a fixed 1 % / 5 % miss rate with 95 % confidence intervals, on unseen attacks, against supervised baselines that do see fakes (oracle references).
+Joakim Tutt's PhD thesis (UNIGE, 2025) models this with the **binary pattern-based channel (BPC)**: the probability that a symbol flips depends only on its 3x3 neighbourhood in the template (a table of 512 values, the codebook, learned on originals), and symbols flip independently. Its main result: counting flips only on the symbols that rarely flip (the reliability mask) detects fakes that plain error counting misses.
 
-All choices (thresholds, hyperparameters) are made on calibration or validation splits grouped by template, never on the test split.
+**Question: do the guarantees of the BPC model hold on real data?** We study three things, on two datasets.
+
+- **C1 - What the 3x3 model misses.** With repeated prints of the same template, we measure how much of the noise predicted by the model is in fact reproducible from print to print, and how much comes from printing or from the capture. We then learn flip-probability models with a larger context (a 5x5 table with back-off, logistic regression, gradient-boosted trees) and compare them to the 3x3 table by held-out log-likelihood. Originals only.
+- **C2 - How far a threshold holds.** A threshold is set on originals only (conformal calibration). We measure how many originals it rejects when the scan, the print run, the printing session, the printer or the phone changes, and how many originals of the new condition are needed to recalibrate.
+- **C3 - Which test against which attacker.** We re-evaluate the scores of the thesis at fixed operating points, with confidence intervals. We test a simple mechanism: a fake is the attacker's estimate of the template, printed a second time, so its error profile can be predicted from the codebook of originals. Supervised classifiers that see fakes are reported as oracle references.
+
+Two datasets with two roles:
+- the **SIP Indigo datasets** (the data of the thesis) for measurement: repeated prints and scans, three sessions, two printers, two phones, 1440 templates;
+- the **Scantrust CDP dataset** as an independent dataset, and the only one with an averaging attack (the attacker combines 50 prints of the same code).
+
+Rules we follow:
+- nothing is chosen on test data: thresholds, hyperparameters and model choices come from calibration, validation or development subsets;
+- all images of a template stay in the same split, and a codebook never scores a template it was fitted on;
+- the defender has no fakes: thresholds use originals only, and methods trained with fakes are labelled oracle;
+- every false acceptance rate is reported with the realized miss rate and a 95 % confidence interval;
+- fakes of the test subsets are opened once, after the methods are frozen.
+
+## Status
+Work in progress. Implemented and tested so far: binarization, 3x3 pattern index, codebook, and the data download script. The experiments are not in the repository yet.
 
 ## Setup
 Python 3.11.
@@ -44,6 +59,8 @@ Downloads resume where they stopped, and files already present are skipped.
 | `scanner` | Yareta | 2021 Indigo 1x1 base at 2400 dpi: 720 templates, originals from two printers (HPI55, HPI76), four kinds of fakes, estimated templates | 4.6 GB |
 | `variability` | Yareta | 2022 Indigo 1x1 variability, InvercoteG paper: the same templates printed again (10 print runs on HPI55, 3 on HPI76) and the other print sessions of both printers | 29.3 GB |
 
+The `scantrust` group alone is enough for the Scantrust part of each study. The Indigo part needs the three other groups.
+
 ### Scantrust CDP dataset
 https://www.kaggle.com/datasets/scantrust/copy-detection-pattern-dataset
 
@@ -63,9 +80,9 @@ By hand, if the range requests ever stop working: download the archive from the 
 ## Repository layout
 ```
 configs/       one YAML config per experiment
-scripts/       data download and data manifest
+scripts/       data download, compact data pack, data manifests
 dataset/       Scantrust and SIP data (not versioned)
-src/cdpbpc/    library: binarization, 3x3 patterns, codebook, scores, metrics, splits
+src/cdpbpc/    library: binarization, 3x3 patterns, codebook, context models, scores, calibration, metrics, splits
 experiments/   one script per experiment, writes results/ and figures
 tests/         pytest
 notebooks/     exploration only, no reported number comes from here
@@ -76,4 +93,5 @@ references/    project description and thesis
 ## References
 - `references/project2_description.pdf` - official CS-433 Project 2 description (Fall 2026).
 - `references/Tutt_2025_PhD_thesis_CDP.pdf` - J. Tutt, *Un modèle mathématique d'impression et d'imagerie pour l'authentification des codes de détection de copie*, PhD thesis, Université de Genève, 2025. doi:[10.13097/archive-ouverte/unige:192628](https://doi.org/10.13097/archive-ouverte/unige:192628). Licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); redistributed unmodified.
+- R. Chaban et al., "Printing variability of copy detection patterns", IEEE WIFS 2022 - describes the Indigo variability dataset.
 - SIP group code: https://github.com/sip-group/snf-it-dis-code (read as a specification only; no code is copied).
