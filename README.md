@@ -83,6 +83,13 @@ python scripts/make_compact.py              # reads dataset/sip_yareta/, writes 
 
 One `.npz` file per print run and scan run, per phone and capture run, and per set of templates. Each holds the binarized 228x228 images (Otsu per image, then a 3x3 majority vote for scans), the `pcor` score, the mean grey level and the Otsu threshold. Until the methods freeze, `pcor` is left as NaN for the fakes of the test templates; after it, `python scripts/make_compact.py --test-pcor --overwrite --only "*fake*"` fills it in. `cdpbpc.io.load_compact` reads a file; with `stage="dev"` it only returns the fakes of the development templates (1 to 288). The pack falls under the same license as the data: it is not versioned and not redistributed.
 
+### Image manifests
+```bash
+python scripts/make_manifest.py             # writes dataset/manifest.csv and dataset/manifest_indigo.csv
+```
+
+One row per image: template, original or fake, attack, session, print run, scan or capture run, and so on. Experiments select images by filtering these tables (`cdpbpc.io.read_manifest`).
+
 ## Repository layout
 ```
 configs/       one YAML config per experiment

@@ -1,4 +1,4 @@
-"""Reading SIP Indigo images and the compact Indigo pack.
+"""Reading data: SIP Indigo images, the compact Indigo pack, and the image manifests.
 
 The compact pack (built by scripts/make_compact.py) holds one .npz file per data file of
 the archive: one print run and scan run, one phone and capture run, originals or fakes,
@@ -15,6 +15,10 @@ or one set of templates. Arrays in each file:
 
 The pack also holds the fakes of the test templates. load_compact(..., stage="dev")
 drops them, as required before the methods freeze.
+
+The manifests (built by scripts/make_manifest.py) list every image with what is known
+about it, one row per image: dataset/manifest.csv for Scantrust and
+dataset/manifest_indigo.csv for Indigo. Read them with read_manifest.
 """
 
 import io
@@ -24,6 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 from PIL import Image
 
 INDIGO_SIDE = 228
@@ -34,6 +39,37 @@ STAGES = ("dev", "test")
 CAPTURE_FIELDS = ("pcor", "mean", "otsu")
 # Classes of data that the development stage must not see beyond INDIGO_DEV_MAX_ID.
 RESTRICTED_CLASSES = ("fake", "estimated")
+
+# Manifest columns and their types. Empty cells mean "not applicable" or "not known".
+SCANTRUST_COLUMNS = {
+    "dataset": "string",  # unique or batch
+    "session": "string",  # U or B
+    "template_id": "Int64",  # global id 1..5000; batch template k is 3500 + k
+    "class": "string",  # original or fake
+    "attack": "string",  # otsu, otsu+unsharp, deep, deep+unsharp; empty for originals
+    "use": "bool",  # False for batch + deep, a duplicate of batch + otsu
+    "print_id": "Int64",  # batch only: file number 1..2500
+    "group": "Int64",  # batch only: (print_id - 1) // 500, 10 templates per group
+    "sheet": "Int64",  # batch only: (print_id - 1) // 100, 25 sheets
+    "path": "string",  # relative to dataset/
+}
+INDIGO_COLUMNS = {
+    "subset": "string",  # mobile, base or variability
+    "template_id": "Int64",  # 1..1440
+    "page": "Int64",  # (template_id - 1) // 144
+    "page_pos": "Int64",  # (template_id - 1) % 144
+    "class": "string",  # original or fake
+    "fake_type": "string",  # EHPI55 or EHPI76 for fakes
+    "printer": "string",  # HPI55 or HPI76
+    "session": "Int64",  # print session 0, 1 or 2
+    "print_run": "Int64",
+    "scan_run": "Int64",  # scanner only
+    "device": "string",  # phone only: iPhone12Pro or SamsungGN20U
+    "capture_run": "Int64",  # phone only: 1..6
+    "stage": "string",  # dev if template_id <= 288, test otherwise
+    "file": "string",  # compact pack file, without .npz
+    "row": "Int64",  # position of the image in that file
+}
 
 
 def decode_image(data: bytes) -> np.ndarray:
@@ -124,6 +160,21 @@ def save_compact(
     with open(tmp, "wb") as f:
         np.savez_compressed(f, **arrays)
     os.replace(tmp, path)
+
+
+def read_compact_header(path: Path) -> tuple[np.ndarray, dict]:
+    """ids and metadata of a compact file, without reading any image."""
+    with np.load(path) as z:
+        return z["ids"], json.loads(str(z["meta"]))
+
+
+def read_manifest(path: Path) -> pd.DataFrame:
+    """Read manifest.csv or manifest_indigo.csv with the right column types."""
+    columns = pd.read_csv(path, nrows=0).columns
+    for known in (SCANTRUST_COLUMNS, INDIGO_COLUMNS):
+        if list(columns) == list(known):
+            return pd.read_csv(path, dtype=known, keep_default_na=False, na_values=[""])
+    raise ValueError(f"{path} is not a manifest: unexpected columns {list(columns)}")
 
 
 @dataclass(frozen=True)
