@@ -54,6 +54,7 @@ SIP_GROUPS = {
     # Scanner dataset at 2400 dpi: 720 templates, two printers, four kinds of fakes.
     "scanner": [
         r"^README\.txt$",
+        r"^2023_Indigo_1x1_mobile/orig_templates/",
         r"^2021_Indigo_1x1_base/print_fake/",
         r"^2021_Indigo_1x1_base/print_original/.*_2400dpi\.zip$",
         r"^2021_Indigo_1x1_base/template_estimated/",
@@ -275,6 +276,12 @@ def main() -> None:
         for member in members:
             fetch_sip(member, sip_dest)
     print("done")
+    if sip_groups:
+        sip_dir = "" if args.dir == DEFAULT_DIR else f" --sip-dir {sip_dest}"
+        print(
+            "\nNext step for the Indigo data: build the compact pack used by the experiments"
+            f" (about 0.5 GB, a few minutes):\n    python scripts/make_compact.py{sip_dir}"
+        )
 
 
 if __name__ == "__main__":

@@ -74,6 +74,15 @@ The SIP group publishes all its CDP data as one public 123 GB archive, and we on
 
 By hand, if the range requests ever stop working: download the archive from the page above and unzip the same folders into `dataset/sip_yareta/`.
 
+### Compact Indigo pack
+The experiments only use binarized images, so the Indigo zips are turned once into a compact pack of about 0.5 GB:
+
+```bash
+python scripts/make_compact.py              # reads dataset/sip_yareta/, writes dataset/indigo_compact/
+```
+
+One `.npz` file per print run and scan run, per phone and capture run, and per set of templates. Each holds the binarized 228x228 images (Otsu per image, then a 3x3 majority vote for scans), the `pcor` score, the mean grey level and the Otsu threshold. Until the methods freeze, `pcor` is left as NaN for the fakes of the test templates; after it, `python scripts/make_compact.py --test-pcor --overwrite --only "*fake*"` fills it in. `cdpbpc.io.load_compact` reads a file; with `stage="dev"` it only returns the fakes of the development templates (1 to 288). The pack falls under the same license as the data: it is not versioned and not redistributed.
+
 ## Repository layout
 ```
 configs/       one YAML config per experiment

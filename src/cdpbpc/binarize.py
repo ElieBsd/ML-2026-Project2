@@ -40,7 +40,8 @@ def binarize_mean(y: np.ndarray, k: int = 4) -> np.ndarray:
     return (m > threshold_otsu(m)).astype(np.uint8)
 
 
-def binarize_otsu(y: np.ndarray) -> np.ndarray:
+def binarize_otsu(y: np.ndarray, threshold: float | None = None) -> np.ndarray:
     """Plain Otsu (k = 1, e.g. Indigo mobile rcod_hist). Returns uint8, 1 = white."""
     y = np.asarray(y, dtype=np.float32)
-    return (y > threshold_otsu(y)).astype(np.uint8)
+    thr = threshold_otsu(y) if threshold is None else threshold
+    return (y > thr).astype(np.uint8)
