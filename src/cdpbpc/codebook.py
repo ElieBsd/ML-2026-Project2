@@ -6,6 +6,7 @@ on its 3x3 template neighbourhood omega.
 
 import numpy as np
 
+from cdpbpc.counts import image_counts
 from cdpbpc.patterns import N_PATTERNS, interior, pattern_index
 
 
@@ -54,13 +55,7 @@ def sample_codebook(t: np.ndarray, t_hat: np.ndarray) -> tuple[np.ndarray, np.nd
     t_hat = np.asarray(t_hat)
     if t.ndim == 2:
         t, t_hat = t[None], t_hat[None]
-    N = t.shape[0]
-    idx = pattern_index(t).reshape(N, -1).astype(np.int64)
-    d = interior(flips(t, t_hat)).reshape(N, -1)
-    flat = idx + N_PATTERNS * np.arange(N)[:, None]
-    Lw = np.bincount(flat.ravel(), minlength=N * N_PATTERNS).reshape(N, N_PATTERNS)
-    Dw = np.bincount(flat.ravel(), weights=d.ravel(), minlength=N * N_PATTERNS)
-    Dw = Dw.reshape(N, N_PATTERNS).astype(np.int64)
+    Dw, Lw = (a.astype(np.int64) for a in image_counts(t, t_hat))
     with np.errstate(invalid="ignore", divide="ignore"):
         P = np.where(Lw > 0, Dw / Lw, np.nan)
     return P, Dw, Lw
