@@ -12,8 +12,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
-from cdpbpc.io import RESTRICTED_CLASSES, load_compact
+from cdpbpc.io import (
+    RESTRICTED_CLASSES,
+    load_compact,
+    load_scantrust,
+    read_manifest,
+    scantrust_stage_rows,
+)
 from cdpbpc.patterns import N_PATTERNS, interior, pattern_index
 
 TEMPLATES_FILE = "templates_original.npz"
@@ -136,3 +143,66 @@ def indigo_counts(path: Path, *, stage: str, cache_dir: Path | None = None) -> C
     counts = Counts(ids=f.ids, D=D, L=L, meta=f.meta)
     _write_cache(cache, key, counts)
     return counts
+
+
+@dataclass(frozen=True)
+class ScantrustCounts:
+    """Pattern counts and per-image numbers of the Scantrust images usable at a stage.
+
+    rows: manifest rows, in the order of the arrays; D, L: (N, 512) int32;
+    pcor, mean, otsu: (N,) float32.
+    """
+
+    rows: pd.DataFrame
+    D: np.ndarray
+    L: np.ndarray
+    pcor: np.ndarray
+    mean: np.ndarray
+    otsu: np.ndarray
+
+
+def scantrust_counts(
+    data_dir: Path, *, stage: str, cache_dir: Path | None = None
+) -> ScantrustCounts:
+    """Counts of every Scantrust image of dataset/manifest.csv allowed at this stage, cached.
+
+    The PNG files are read and binarized once (load_scantrust); the cache (default
+    dataset/cache/scantrust_counts.<stage>.npz) is rebuilt whenever the manifest changes.
+    """
+    data_dir = Path(data_dir)
+    manifest_path = data_dir / "manifest.csv"
+    rows = scantrust_stage_rows(read_manifest(manifest_path), stage=stage)
+    cache_dir = data_dir / "cache" if cache_dir is None else Path(cache_dir)
+    cache = cache_dir / f"scantrust_counts.{stage}.npz"
+    key = {"stage": stage, "manifest": _sha256(manifest_path)}
+    fields = ("pcor", "mean", "otsu")
+
+    if cache.exists():
+        with np.load(cache) as z:
+            if json.loads(str(z["key"])) == key and z["path"].tolist() == rows["path"].tolist():
+                return ScantrustCounts(
+                    rows=rows,
+                    D=z["D"].astype(np.int32),
+                    L=z["L"].astype(np.int32),
+                    **{f: z[f] for f in fields},
+                )
+
+    images = load_scantrust(data_dir, rows, stage=stage)
+    D, L = image_counts(images.t, images.bits)
+    result = ScantrustCounts(
+        rows=rows, D=D, L=L, pcor=images.pcor, mean=images.mean, otsu=images.otsu
+    )
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    tmp = cache.with_name(cache.name + ".part")
+    with open(tmp, "wb") as f:
+        # At most 50 x 50 interior symbols per image: uint16 is lossless.
+        np.savez_compressed(
+            f,
+            path=np.array(rows["path"].tolist()),
+            D=D.astype(np.uint16),
+            L=L.astype(np.uint16),
+            key=np.array(json.dumps(key, sort_keys=True)),
+            **{f: getattr(result, f) for f in fields},
+        )
+    os.replace(tmp, cache)
+    return result

@@ -1,0 +1,18 @@
+# E0: facts about the data, redone with the project code.
+# Only originals, templates, and the fakes of the development subsets are read (stage dev).
+data_dir: dataset
+seed: 0
+
+scantrust:
+  codebook_size: 2000      # unique originals drawn among templates 1..3500 (N3, N8)
+  n_draws: 10              # draws of that codebook for the session shift (N3)
+  alphas: [0.01, 0.05]     # target P_miss of the conformal threshold (N3)
+  sheet_folds: 5           # folds by template for the batch codebook (N4)
+  fake_quantile: 0.99      # common threshold on originals' Hamming for P_fa per template (N7)
+  correlation_pairs: 500   # otsu / deep pairs of batch group 0 compared on grey levels (N2)
+
+indigo:
+  mask_mu: 0.01            # reliable patterns of the thesis mask (F5)
+  codebook_size: 50        # originals of capture 1 for the F5 codebook
+  codebook_draws: 20       # draws of those 50 originals; the first one follows the audit
+  quantiles: [0.5, 0.99, 1.0]

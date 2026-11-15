@@ -19,6 +19,9 @@ drops them, as required before the methods freeze.
 The manifests (built by scripts/make_manifest.py) list every image with what is known
 about it, one row per image: dataset/manifest.csv for Scantrust and
 dataset/manifest_indigo.csv for Indigo. Read them with read_manifest.
+
+Scantrust images are small and read straight from the PNG files with load_scantrust,
+which applies the same development cut as load_compact.
 """
 
 import io
@@ -30,6 +33,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from PIL import Image
+from skimage.filters import threshold_otsu
+
+from cdpbpc.binarize import binarize_vote
+from cdpbpc.scores import pcor
 
 INDIGO_SIDE = 228
 INDIGO_N_TEMPLATES = 1440
@@ -39,6 +46,12 @@ STAGES = ("dev", "test")
 CAPTURE_FIELDS = ("pcor", "mean", "otsu")
 # Classes of data that the development stage must not see beyond INDIGO_DEV_MAX_ID.
 RESTRICTED_CLASSES = ("fake", "estimated")
+
+SCANTRUST_SIDE = 52
+SCANTRUST_K = 4  # pixels per symbol side: scans are 208x208
+# Fakes visible before the methods freeze: batch group 0 and unique block V_U.
+SCANTRUST_DEV_GROUP = 0
+SCANTRUST_DEV_UNIQUE = (3551, 4000)
 
 # Manifest columns and their types. Empty cells mean "not applicable" or "not known".
 SCANTRUST_COLUMNS = {
@@ -216,3 +229,66 @@ def load_compact(path: Path, *, stage: str) -> CompactFile:
             skipped=skipped,
             **fields,
         )
+
+
+def scantrust_stage_rows(manifest: pd.DataFrame, *, stage: str) -> pd.DataFrame:
+    """Manifest rows usable at this stage.
+
+    stage="dev" keeps all originals and only the fakes of batch group 0 and of unique
+    templates 3551..4000 (V_U). stage="test" keeps everything and is only for runs after
+    the methods freeze.
+    """
+    if stage not in STAGES:
+        raise ValueError(f"stage must be one of {STAGES}, got {stage!r}")
+    if stage == "test":
+        return manifest
+    lo, hi = SCANTRUST_DEV_UNIQUE
+    dev_fake = ((manifest["dataset"] == "batch") & (manifest["group"] == SCANTRUST_DEV_GROUP)) | (
+        (manifest["dataset"] == "unique") & manifest["template_id"].between(lo, hi)
+    )
+    keep = (manifest["class"] == "original") | ((manifest["class"] == "fake") & dev_fake)
+    return manifest[keep.fillna(False).astype(bool)]
+
+
+@dataclass(frozen=True)
+class ScantrustImages:
+    """Scantrust images. rows: manifest rows; t, bits: (N, 52, 52) uint8; others: (N,)."""
+
+    rows: pd.DataFrame
+    t: np.ndarray
+    bits: np.ndarray
+    pcor: np.ndarray
+    mean: np.ndarray
+    otsu: np.ndarray
+
+
+def load_scantrust(data_dir: Path, rows: pd.DataFrame, *, stage: str) -> ScantrustImages:
+    """Read, binarize and summarize the Scantrust images listed in rows.
+
+    rows: rows of dataset/manifest.csv; those not allowed at this stage are dropped
+    (scantrust_stage_rows). Each scan y = png / 255 is binarized with a global Otsu
+    threshold and a 4x4 majority vote. Templates come from unique_cdp/template/, also for
+    batch images (batch template k is unique template 3500 + k).
+    """
+    data_dir = Path(data_dir)
+    rows = scantrust_stage_rows(rows, stage=stage)
+    templates = {}
+    for tid in sorted(set(rows["template_id"].tolist())):
+        path = data_dir / "unique_cdp" / "template" / f"{tid:05d}.png"
+        templates[tid] = decode_template(path.read_bytes())
+    n = len(rows)
+    t = np.empty((n, SCANTRUST_SIDE, SCANTRUST_SIDE), dtype=np.uint8)
+    bits = np.empty_like(t)
+    scores = np.empty((3, n), dtype=np.float32)
+    for i, (tid, rel) in enumerate(zip(rows["template_id"].tolist(), rows["path"].tolist())):
+        y = to_gray(decode_image((data_dir / rel).read_bytes()))
+        side = SCANTRUST_K * SCANTRUST_SIDE
+        if y.shape != (side, side):
+            raise ValueError(f"{rel}: shape {y.shape}, expected {(side, side)}")
+        thr = float(threshold_otsu(y))
+        t[i] = templates[tid]
+        bits[i] = binarize_vote(y, SCANTRUST_K, threshold=thr)
+        scores[:, i] = pcor(t[i], y, SCANTRUST_K), y.mean(), thr
+    return ScantrustImages(
+        rows=rows, t=t, bits=bits, pcor=scores[0], mean=scores[1], otsu=scores[2]
+    )
