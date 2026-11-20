@@ -11,6 +11,14 @@ NOISE_COLORS = {
 }
 
 
+# Fig. 1 right: one colour per test set (marker shapes differ too, for print and CVD).
+TEST_SET_COLORS = {
+    "indigo": "#2a78d6",
+    "scantrust_same_session": "#eb6834",
+    "scantrust_other_session": "#1baf7a",
+}
+
+
 def setup() -> None:
     """Matplotlib settings shared by all figures: small fonts, fonts embedded in PDFs."""
     mpl.rcParams.update(
