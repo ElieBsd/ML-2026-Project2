@@ -1,8 +1,10 @@
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 
+from cdpbpc.io import load_compact, save_compact, scantrust_stage_rows
 from cdpbpc.splits import (
     batch_e_print_ids,
     batch_fold,
@@ -209,3 +211,49 @@ def test_indigo_blocks_deterministic_and_checked():
 
 # "No Indigo fake >= 289 read with stage='dev'" is enforced when the data
 # is read and tested in tests/test_io.py (test_dev_stage_drops_test_templates).
+
+
+def test_development_blocks_match_the_reading_cut(tmp_path):
+    """Blocks and reading cuts agree: the fakes io lets through with stage="dev" are those
+    of the development blocks, and no test block holds a development template."""
+    # Indigo: a fake file with every template, read with stage="dev".
+    for setting, last in (("mobile", 1440), ("scanner", 720)):
+        ids = np.arange(1, last + 1)
+        zeros = np.zeros(len(ids))
+        path = tmp_path / f"fake_{setting}.npz"
+        bits = np.zeros((len(ids), 228, 228), np.uint8)
+        meta = {"class": "fake"}
+        save_compact(path, ids=ids, bits=bits, meta=meta, pcor=zeros, mean=zeros, otsu=zeros)
+        readable = load_compact(path, stage="dev").ids
+        np.testing.assert_array_equal(readable, indigo_blocks(setting, stage="dev")["V"])
+        test = indigo_blocks(setting, stage="test")
+        assert not np.isin(np.r_[test["T_a"], test["T_b"]], readable).any()
+
+    # Scantrust: one fake per template, as in the download.
+    rows = [("unique", t, None) for t in range(3501, 5001)]
+    rows += [("batch", t, (t - 3501) // 10) for t in range(3501, 3551)]
+    manifest = pd.DataFrame(
+        {
+            "dataset": [r[0] for r in rows],
+            "template_id": pd.array([r[1] for r in rows], dtype="Int64"),
+            "class": "fake",
+            "group": pd.array([r[2] for r in rows], dtype="Int64"),
+        }
+    )
+    kept = scantrust_stage_rows(manifest, stage="dev")
+    unique_dev = kept.loc[kept["dataset"] == "unique", "template_id"].to_numpy(int)
+    batch_dev = kept.loc[kept["dataset"] == "batch", "template_id"].to_numpy(int)
+    np.testing.assert_array_equal(unique_dev, unique_blocks(0)["V"])
+    np.testing.assert_array_equal(batch_dev, batch_fold(0)["blocks"]["T"])
+    assert not np.isin(unique_blocks(0)["T"], unique_dev).any()
+    for g in BATCH_TEST_GROUPS:
+        assert not np.isin(batch_fold(g)["blocks"]["T"], batch_dev).any()
+
+
+def test_fake_without_original_is_never_judged():
+    """protocol.md §1.3: blocks follow the originals of the condition, so a test fake whose
+    template has no original there is in no block (13 such fakes in all of Indigo)."""
+    available = np.setdiff1d(np.arange(1, 1441), [441, 1264])  # originals missing
+    b = indigo_blocks("mobile", stage="test", available=available)
+    every = np.concatenate(list(b.values()))
+    assert not np.isin([441, 1264], every).any()

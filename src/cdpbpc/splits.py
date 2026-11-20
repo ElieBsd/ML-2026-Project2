@@ -11,17 +11,24 @@ template_ids. Block names:
 
 Which fakes may be read at all is decided when the data is read (io.load_compact and
 io.scantrust_stage_rows with stage="dev"); the blocks here only say which templates play
-which role. check_disjoint guards every split.
+which role. The development boundaries (Indigo templates 1..288, unique 3551..4000, batch
+group 0) are imported from cdpbpc.io, so blocks and reading cuts cannot drift apart.
+check_disjoint guards every split.
 """
 
 import numpy as np
 
-STAGES = ("dev", "test")
+from cdpbpc.io import (
+    INDIGO_DEV_MAX_ID,
+    SCANTRUST_DEV_GROUP,
+    SCANTRUST_DEV_UNIQUE,
+    STAGES,
+)
 
 # Scantrust unique_cdp (session U, one image per template)
 UNIQUE_POOL = (1, 3500)  # originals only: E, M, S, T_orig are drawn here
 UNIQUE_BATCH = (3501, 3550)  # templates of batch_cdp (D-014): in no unique block
-UNIQUE_V = (3551, 4000)  # V_U: originals and 4 attacks, development
+UNIQUE_V = SCANTRUST_DEV_UNIQUE  # V_U (3551..4000): originals and 4 attacks, development
 UNIQUE_T = (4001, 5000)  # T_U: originals and 4 attacks, test
 UNIQUE_SIZES = {"E": 50, "M": 500, "S": 1000, "T_orig": 1000}
 UNIQUE_N_SEEDS = 20
@@ -30,14 +37,13 @@ UNIQUE_N_SEEDS = 20
 BATCH_FIRST_ID = 3501  # batch template k is template_id 3500 + k
 BATCH_N_GROUPS = 5  # 10 templates per group
 BATCH_GROUP_SIZE = 10
-BATCH_DEV_GROUP = 0  # development group, never tested
+BATCH_DEV_GROUP = SCANTRUST_DEV_GROUP  # development group (0), never tested
 BATCH_TEST_GROUPS = (1, 2, 3, 4)
 BATCH_E_COPY = 0  # copy on the sheet used for E: one image per template and per sheet
 
 # Indigo
-INDIGO_N_TEMPLATES = 1440
 INDIGO_PAGE = 144
-INDIGO_DEV = (1, 288)  # pages 1 and 2
+INDIGO_DEV = (1, INDIGO_DEV_MAX_ID)  # pages 1 and 2
 INDIGO_TEST = {"mobile": (289, 1440), "scanner": (289, 720)}
 INDIGO_E_SIZE = 50
 INDIGO_M_SIZE = 150
@@ -175,7 +181,10 @@ def indigo_blocks(
     """Blocks for one condition (a phone and a capture, or a printer at the scanner).
 
     available: template_ids that have an original in this condition (some files miss
-    templates); every block is restricted to it. None means all templates of the setting.
+    templates); every block is restricted to it, T_a and T_b included. None means all
+    templates of the setting. A fake whose template has no original in the condition is
+    therefore in no block and is never judged (13 test fakes in all of Indigo, listed in
+    protocol.md §1.3).
 
     stage="test": E = 50 and M = 150 originals drawn (seed) among development templates
     1..288; the test range is split in two halves T_a and T_b for the cross-conformal
