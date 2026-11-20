@@ -1,0 +1,46 @@
+# C1b: models of the flip probability with a context larger than 3x3, judged by their
+# log-loss on templates never used for training (methods.md §5, protocol.md §3).
+# Originals only: no file or image of fakes is opened.
+data_dir: dataset
+seed: 0
+n_boot: 2000                 # bootstrap draws on test templates (95 % percentile intervals)
+margin: 3                    # every model is judged on positions at distance >= 3 from the border
+backoff_masses: [2, 5, 10, 20, 50, 100, 200, 500]
+logistic_C: [0.01, 0.1, 1, 10, 100]
+trees: {max_iter: 300, learning_rate: 0.1, max_leaf_nodes: 63, min_samples_leaf: 200}
+ceiling_a: [0.5, 1, 2, 4, 8, 16]
+decision: {min_gain: 0.05}   # plan.md: the 25-bit table cuts the validation log-loss by >= 5 %
+prediction_H1b: {min_gain: 0.05, min_rho_cut: 0.333}   # protocol.md §5.1, on the test templates
+
+indigo:
+  # HPI55, session 1, 10 print runs, scan 1. Templates present in all ten files.
+  prints: [variability_HPI55_session1_print1_scan1, variability_HPI55_session1_print2_scan1,
+           variability_HPI55_session1_print3_scan1, variability_HPI55_session1_print4_scan1,
+           variability_HPI55_session1_print5_scan1, variability_HPI55_session1_print6_scan1,
+           variability_HPI55_session1_print7_scan1, variability_HPI55_session1_print8_scan1,
+           variability_HPI55_session1_print9_scan1, variability_HPI55_session1_print10_scan1]
+  train: [433, 1440]         # pages 4 to 10
+  validation: [289, 432]     # page 3
+  test: [1, 288]             # pages 1 and 2
+  # The learned models are fitted on a draw of training templates (memory and time);
+  # their hyperparameters are chosen on a draw of validation templates.
+  logistic_templates: 40
+  trees_templates: 60
+  learned_val_templates: 40
+  # One line each: the HPI55 models applied to another printer or another session, on
+  # the test templates.
+  transfer:
+    HPI76_session1: [variability_HPI76_session1_print1_scan1, variability_HPI76_session1_print2_scan1,
+                     variability_HPI76_session1_print3_scan1]
+    HPI55_session0: [variability_HPI55_session0_print1_scan1]
+    HPI55_session2: [variability_HPI55_session2_print1_scan1]
+
+scantrust:
+  train: [1, 3000]           # unique_cdp originals, session U
+  validation: [3001, 3500]
+  test_unique: [4001, 5000]  # same session, one read per template
+  # and the 50 batch_cdp templates x 50 prints (session B): the ceiling is judged there,
+  # its shrinkage a chosen on one half of the templates and applied to the other.
+  logistic_templates: 1000
+  trees_templates: 3000
+  learned_val_templates: 500
