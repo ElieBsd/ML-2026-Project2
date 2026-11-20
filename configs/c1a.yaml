@@ -1,0 +1,84 @@
+# C1a: what the 3x3 BPC model misses (methods.md §6, protocol.md §3). Originals only:
+# no file or image of fakes is opened.
+data_dir: dataset
+seed: 0
+n_null: 200        # draws under the BPC, on the same templates (null reference)
+n_boot: 2000       # bootstrap draws on templates (95 % percentile intervals)
+workers: 4         # processes for the heavy null draws (position maps, two-point)
+
+indigo:
+  # Reads of the same templates. Halves by rank cross-fit the codebook.
+  within:
+    prints_HPI55_s1: [variability_HPI55_session1_print1_scan1, variability_HPI55_session1_print2_scan1,
+                      variability_HPI55_session1_print3_scan1, variability_HPI55_session1_print4_scan1,
+                      variability_HPI55_session1_print5_scan1, variability_HPI55_session1_print6_scan1,
+                      variability_HPI55_session1_print7_scan1, variability_HPI55_session1_print8_scan1,
+                      variability_HPI55_session1_print9_scan1, variability_HPI55_session1_print10_scan1]
+    prints_HPI76_s1: [variability_HPI76_session1_print1_scan1, variability_HPI76_session1_print2_scan1,
+                      variability_HPI76_session1_print3_scan1]
+    scans_HPI55_s1: [variability_HPI55_session1_print1_scan1, variability_HPI55_session1_print1_scan2,
+                     variability_HPI55_session1_print1_scan3, variability_HPI55_session1_print1_scan4]
+    scans_HPI55_s0: [variability_HPI55_session0_print1_scan1, variability_HPI55_session0_print1_scan2,
+                     variability_HPI55_session0_print1_scan3]
+    scans_HPI76_s0: [variability_HPI76_session0_print1_scan1, variability_HPI76_session0_print1_scan2,
+                     variability_HPI76_session0_print1_scan3]
+    captures_iPhone: [mobile_original_iPhone12Pro_run1, mobile_original_iPhone12Pro_run2,
+                      mobile_original_iPhone12Pro_run3, mobile_original_iPhone12Pro_run4,
+                      mobile_original_iPhone12Pro_run5, mobile_original_iPhone12Pro_run6]
+    captures_Samsung: [mobile_original_SamsungGN20U_run1, mobile_original_SamsungGN20U_run2,
+                       mobile_original_SamsungGN20U_run3, mobile_original_SamsungGN20U_run4,
+                       mobile_original_SamsungGN20U_run5, mobile_original_SamsungGN20U_run6]
+  # Shared part of the reproducible pattern: [condition a, condition b]. A name of
+  # `within` stands for its reads; otherwise one file.
+  cross:
+    HPI55_session1_vs_session0: [prints_HPI55_s1, variability_HPI55_session0_print1_scan1]
+    HPI55_session1_vs_session2: [prints_HPI55_s1, variability_HPI55_session2_print1_scan1]
+    HPI76_session1_vs_session0: [prints_HPI76_s1, variability_HPI76_session0_print1_scan1]
+    HPI76_session1_vs_session2: [prints_HPI76_s1, variability_HPI76_session2_print1_scan1]
+    HPI55_vs_HPI76_session1: [prints_HPI55_s1, prints_HPI76_s1]
+    iPhone_vs_Samsung: [captures_iPhone, captures_Samsung]
+    # Checks of the split: odd against even print runs (should be 1), and the 4 scans of
+    # run 1 against runs 2..10 (should be about rho_prints / rho_scans).
+    check_HPI55_odd_vs_even_prints:
+      - [variability_HPI55_session1_print1_scan1, variability_HPI55_session1_print3_scan1,
+         variability_HPI55_session1_print5_scan1, variability_HPI55_session1_print7_scan1,
+         variability_HPI55_session1_print9_scan1]
+      - [variability_HPI55_session1_print2_scan1, variability_HPI55_session1_print4_scan1,
+         variability_HPI55_session1_print6_scan1, variability_HPI55_session1_print8_scan1,
+         variability_HPI55_session1_print10_scan1]
+    check_HPI55_run1_scans_vs_other_prints:
+      - scans_HPI55_s1
+      - [variability_HPI55_session1_print2_scan1, variability_HPI55_session1_print3_scan1,
+         variability_HPI55_session1_print4_scan1, variability_HPI55_session1_print5_scan1,
+         variability_HPI55_session1_print6_scan1, variability_HPI55_session1_print7_scan1,
+         variability_HPI55_session1_print8_scan1, variability_HPI55_session1_print9_scan1,
+         variability_HPI55_session1_print10_scan1]
+  # methods.md §6.2: template = rho between prints, print = rho between reads of one print
+  # minus that, capture = 1 - rho between reads. HPI76 has repeated prints only in session
+  # 1 and repeated scans only in session 0: its split mixes sessions (decision 2026-11-20).
+  decomposition:
+    HPI55: [prints_HPI55_s1, scans_HPI55_s1]
+    HPI55_scans_session0: [prints_HPI55_s1, scans_HPI55_s0]
+    HPI76_scans_session0: [prints_HPI76_s1, scans_HPI76_s0]
+  # sigma_image and its components: tables templates x reads of each `within` set; and
+  # sigma_image of each single file below and of every file of the tables.
+  extra_files: [variability_HPI55_session2_print1_scan1, variability_HPI76_session2_print1_scan1]
+  # Position maps (a `within` name or one file; one capture per phone, as in the audit).
+  maps: [prints_HPI55_s1, prints_HPI76_s1, mobile_original_iPhone12Pro_run1,
+         mobile_original_SamsungGN20U_run1]
+  two_point_files: [variability_HPI55_session1_print1_scan1, variability_HPI76_session1_print1_scan1,
+                    mobile_original_iPhone12Pro_run1, mobile_original_SamsungGN20U_run1]
+  two_point_max_templates: 300   # first templates by rank; data and null on the same ones
+  map_draws_per_task: 50
+
+scantrust:
+  unique_pool: [1, 3500]     # unique originals used for sigma_image, map, two-point and the
+                             # session-U codebook (never the batch templates 3501..3550)
+  # batch_cdp: 50 templates x 5 sheets x 10 copies; codebook from the other groups of 10.
+
+map_ring: 2                  # outer rings of the map left out of the "inner" statistics
+predictions:                 # protocol.md §5.1, written 2026-11-10
+  H1a: {rho_min: 0.15, ci_low_min: 0.10}
+  H1c: {margin: 0.10}
+  H1d: {indigo_ratio: 3.0, scantrust_ratio: 1.1}   # sigma_image / binomial sd (2026-11-20)
+  H1e: {sd_reliable_max_pts: 1.0}
