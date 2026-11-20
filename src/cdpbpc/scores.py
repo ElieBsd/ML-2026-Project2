@@ -55,3 +55,49 @@ def masked_hamming(
     symbols = np.asarray(L)[:, mask].sum(axis=1)
     with np.errstate(invalid="ignore", divide="ignore"):
         return np.where(symbols > 0, flips / symbols, np.nan)
+
+
+# Reliability classes of methods.md §7.2: class b if edge_b <= P_b < edge_{b+1}, last edge
+# included. 8 classes for the profiles and the oracle; 4 for binned_mahalanobis.
+CLASS_EDGES_8 = (0.0, 0.01, 0.05, 0.15, 0.30, 0.50, 0.70, 0.90, 1.0)
+CLASS_EDGES_4 = (0.0, 0.05, 0.30, 0.70, 1.0)
+
+
+def reliability_class(p: np.ndarray, edges=CLASS_EDGES_8) -> np.ndarray:
+    """Reliability class of each flip probability p: ints in 0..len(edges)-2."""
+    return np.clip(np.searchsorted(edges, p, side="right") - 1, 0, len(edges) - 2)
+
+
+def binned_z(D: np.ndarray, L: np.ndarray, codebook: np.ndarray, edges=CLASS_EDGES_8) -> np.ndarray:
+    """centered_z inside each reliability class (methods.md §7.2).
+
+    z_b = sum over the patterns of class b of (D - L p), over sqrt(sum of L p (1 - p)); 0
+    when the image has no symbol of class b. Classes follow the codebook P_b, p is kept in
+    [1e-4, 1 - 1e-4]. Returns (N, len(edges) - 1).
+    """
+    codebook = np.asarray(codebook, dtype=np.float64)
+    onehot = reliability_class(codebook, edges)[:, None] == np.arange(len(edges) - 1)[None]
+    p = np.clip(codebook, P_CLIP, 1 - P_CLIP)
+    D = np.asarray(D, dtype=np.float64)
+    L = np.asarray(L, dtype=np.float64)
+    num = (D - L * p) @ onehot
+    var = (L * p * (1 - p)) @ onehot
+    return np.where(var > 0, num / np.sqrt(np.where(var > 0, var, 1.0)), 0.0)
+
+
+LRT_CLIP = 1e-3  # p and q are kept in [1e-3, 1 - 1e-3] in likelihood ratios (methods.md §7.1)
+
+
+def lrt(D: np.ndarray, L: np.ndarray, p: np.ndarray, q: np.ndarray) -> np.ndarray:
+    """Log-likelihood ratio of fakes (flip probabilities q) against originals (p).
+
+    sum over patterns of D log(q / p) + (L - D) log((1 - q) / (1 - p)); large = suspect.
+    p: codebook of originals; q: flip probabilities of fakes, learned on fakes (lrt_plugin,
+    oracle) or predicted without fakes (lrt_vote, methods.md §9). Both (512,), kept in
+    [1e-3, 1 - 1e-3].
+    """
+    p = np.clip(np.asarray(p, dtype=np.float64), LRT_CLIP, 1 - LRT_CLIP)
+    q = np.clip(np.asarray(q, dtype=np.float64), LRT_CLIP, 1 - LRT_CLIP)
+    D = np.asarray(D, dtype=np.float64)
+    L = np.asarray(L, dtype=np.float64)
+    return D @ np.log(q / p) + (L - D) @ np.log((1 - q) / (1 - p))

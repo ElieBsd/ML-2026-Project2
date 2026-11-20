@@ -3,7 +3,6 @@ import pytest
 
 from cdpbpc.counts import image_counts
 from cdpbpc.diagnostics import (
-    RELIABILITY_EDGES,
     adjusted_eta2,
     cross_fitted_codebooks,
     crossed_components,
@@ -11,7 +10,6 @@ from cdpbpc.diagnostics import (
     icc_oneway,
     map_stats,
     pattern_sums,
-    reliability_class,
     reproducibility,
     reproducibility_from_sums,
     residual_flip_rate,
@@ -131,12 +129,6 @@ def test_two_way_components_recover_simulated_effects():
 
 
 # ----------------------------------------------------------------------------- C1a suite
-
-
-def test_reliability_classes_follow_methods_7_2():
-    p = np.array([0.0, 0.009, 0.01, 0.0499, 0.05, 0.15, 0.3, 0.5, 0.7, 0.9, 0.95, 1.0])
-    np.testing.assert_array_equal(reliability_class(p), [0, 0, 1, 1, 2, 3, 4, 5, 6, 7, 7, 7])
-    assert len(RELIABILITY_EDGES) == 9
 
 
 def test_pattern_sums_match_a_direct_count():

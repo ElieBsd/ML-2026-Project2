@@ -27,14 +27,7 @@ import numpy as np
 from scipy.stats import binom
 
 from cdpbpc.patterns import N_PATTERNS, interior, pattern_index
-
-# methods.md §7.2: class b if edge_b <= p < edge_{b+1}, last edge included.
-RELIABILITY_EDGES = (0.0, 0.01, 0.05, 0.15, 0.30, 0.50, 0.70, 0.90, 1.0)
-
-
-def reliability_class(p: np.ndarray, edges=RELIABILITY_EDGES) -> np.ndarray:
-    """Reliability class of each flip probability p (methods.md §7.2): ints in 0..len(edges)-2."""
-    return np.clip(np.searchsorted(edges, p, side="right") - 1, 0, len(edges) - 2)
+from cdpbpc.scores import CLASS_EDGES_8, reliability_class
 
 
 def flip_counts(t: np.ndarray, reads: list[np.ndarray]) -> np.ndarray:
@@ -132,7 +125,7 @@ def reproducibility_from_sums(
     folds: np.ndarray | None = None,
     weights: np.ndarray | None = None,
     codebook_b: np.ndarray | None = None,
-    edges=RELIABILITY_EDGES,
+    edges=CLASS_EDGES_8,
 ) -> dict:
     """Disagreement statistics of methods.md §6.1 from pattern_sums, cross-fitted by fold.
 
