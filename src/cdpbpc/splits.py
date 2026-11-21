@@ -27,7 +27,7 @@ from cdpbpc.io import (
 
 # Scantrust unique_cdp (session U, one image per template)
 UNIQUE_POOL = (1, 3500)  # originals only: E, M, S, T_orig are drawn here
-UNIQUE_BATCH = (3501, 3550)  # templates of batch_cdp (D-014): in no unique block
+UNIQUE_BATCH = (3501, 3550)  # templates of batch_cdp: in no unique block
 UNIQUE_V = SCANTRUST_DEV_UNIQUE  # V_U (3551..4000): originals and 4 attacks, development
 UNIQUE_T = (4001, 5000)  # T_U: originals and 4 attacks, test
 UNIQUE_SIZES = {"E": 50, "M": 500, "S": 1000, "T_orig": 1000}
@@ -183,8 +183,7 @@ def indigo_blocks(
     available: template_ids that have an original in this condition (some files miss
     templates); every block is restricted to it, T_a and T_b included. None means all
     templates of the setting. A fake whose template has no original in the condition is
-    therefore in no block and is never judged (13 test fakes in all of Indigo, listed in
-    protocol.md §1.3).
+    therefore in no block and is never judged (13 test fakes in all of Indigo).
 
     stage="test": E = 50 and M = 150 originals drawn (seed) among development templates
     1..288; the test range is split in two halves T_a and T_b for the cross-conformal

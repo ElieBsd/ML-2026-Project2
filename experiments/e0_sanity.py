@@ -1,4 +1,4 @@
-"""E0: facts about the data, redone with the project code.
+"""Sanity checks: facts about the data, redone with the project code.
 
 Scantrust: identity of the templates of the two datasets (N1), the otsu / deep duplicate
 of batch_cdp (N2), flip rates, shape of the codebook (N8), session shift (N3), sheet
@@ -50,7 +50,7 @@ from cdpbpc.scores import centered_z, hamming, masked_hamming
 
 ROOT = Path(__file__).resolve().parents[1]
 STAGE = "dev"
-ATTACKS_USED = ("otsu", "otsu+unsharp", "deep+unsharp")  # batch deep is a duplicate (D-015)
+ATTACKS_USED = ("otsu", "otsu+unsharp", "deep+unsharp")  # batch deep is a duplicate of batch otsu
 INDIGO_PAGE = 144
 
 
@@ -320,7 +320,7 @@ def indigo_facts(data_dir: Path, cfg: dict, seed: int) -> dict:
     out["estimated_template_ber"] = ber
 
     # F5: tail of the masked Hamming distance of phone originals, capture 1. The codebook
-    # comes from 50 originals of templates above 288; the first draw follows the audit,
+    # comes from 50 originals of templates above 288; the first draw is also reported alone,
     # the others show how much the mask depends on which 50 originals are drawn.
     rng = np.random.default_rng(seed)
     f5 = {}
@@ -354,7 +354,7 @@ def indigo_facts(data_dir: Path, cfg: dict, seed: int) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="E0: facts about the data")
+    parser = argparse.ArgumentParser(description="Sanity checks: facts about the data")
     parser.add_argument("--config", type=Path, default=ROOT / "configs" / "e0.yaml")
     args = parser.parse_args(argv)
     text = args.config.read_text()

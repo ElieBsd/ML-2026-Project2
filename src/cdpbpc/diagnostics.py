@@ -1,6 +1,6 @@
-"""Diagnostics of the BPC model on originals (C1a, methods.md §6).
+"""Diagnostics of the BPC model on originals.
 
-Locality (§6.1). A read is one capture of one print. If a position flips with
+Locality. A read is one capture of one print. If a position flips with
 probability pi, two independent reads of it disagree with probability 2 pi (1 - pi).
 The BPC says pi = P_b(omega) for every position with pattern omega. If pi in fact varies
 around P_b from position to position, reads agree more often than the BPC predicts, and
@@ -11,10 +11,10 @@ is the share of the BPC noise that is reproducible from one read to the next (0 
 the BPC). It does not depend on the number of reads. Between two conditions a and b,
 the covariance of their position effects over the variance in a is the shared part.
 
-Independence (§6.3). sigma_image is the spread of the flip rate between images beyond
+Independence. sigma_image is the spread of the flip rate between images beyond
 what the BPC predicts for each image, in points of flip rate.
 
-Stationarity (§6.4) and two-point correlation (§6.5) work on positions.
+Stationarity and two-point correlation (Tutt 2025, p. 138) work on positions.
 
 The codebook that judges a template is always learned on other templates: templates are
 split into folds (two halves by rank by default, groups of sheets for batch_cdp), and
@@ -57,7 +57,7 @@ def pattern_sums(
     n_b: int | None = None,
     chunk: int = 64,
 ) -> dict:
-    """Per-template, per-pattern sums over interior positions (methods.md §6.1).
+    """Per-template, per-pattern sums over interior positions.
 
     t: (N, side, side) templates; K: flip counts over n reads of condition a; K_b, n_b:
     the same for condition b on the same templates. Returns (N, 512) float64 arrays:
@@ -127,7 +127,7 @@ def reproducibility_from_sums(
     codebook_b: np.ndarray | None = None,
     edges=CLASS_EDGES_8,
 ) -> dict:
-    """Disagreement statistics of methods.md §6.1 from pattern_sums, cross-fitted by fold.
+    """Disagreement statistics (rho, shared part) from pattern_sums, cross-fitted by fold.
 
     folds: (N,) fold of each template (default: two halves by rank); weights: (N,)
     template multiplicities (bootstrap); codebook_b: a fixed codebook for condition b,
@@ -191,7 +191,7 @@ def reproducibility(
     folds: np.ndarray | None = None,
     codebook_b: np.ndarray | None = None,
 ) -> dict:
-    """Disagreement statistics of methods.md §6.1, with a cross-fitted codebook.
+    """Disagreement statistics (rho, shared part), with a cross-fitted codebook.
 
     t: (N, side, side) templates; K: flip counts over n reads of condition a (flip_counts);
     K_b, n_b: the same for a second condition b on the same templates. See
@@ -279,7 +279,7 @@ def _weighted_var(x: np.ndarray, w: np.ndarray) -> float:
 
 
 def sigma_image(r: np.ndarray, var_binomial: np.ndarray, weights: np.ndarray | None = None) -> dict:
-    """Image effect of methods.md §6.3 from residual flip rates (one read per template).
+    """Image effect sigma_image from residual flip rates (one read per template).
 
     r, var_binomial: (N,) from residual_flip_rate. var_image = Var(r) - mean binomial
     variance (may be < 0 by chance); sd_image = sqrt(max(var_image, 0)). Standard
@@ -318,7 +318,7 @@ def icc_oneway(values: np.ndarray, groups: np.ndarray) -> float:
 def adjusted_eta2(
     values: np.ndarray, labels: np.ndarray, weights: np.ndarray | None = None
 ) -> float:
-    """Adjusted share of the variance of values explained by a grouping (methods.md §6.3).
+    """Adjusted share of the variance of values explained by a grouping.
 
     Corrected for the number of groups, so a grouping that explains nothing gives about 0.
     weights: integer multiplicities of the values (bootstrap), as if rows were repeated.
@@ -337,7 +337,7 @@ def adjusted_eta2(
 
 
 def two_way_components(H: np.ndarray, weights: np.ndarray | None = None) -> dict:
-    """Variance components of a templates x reads table without replication (methods.md §6.3).
+    """Variance components of a templates x reads table without replication.
 
     H: (n_templates, n_reads), e.g. the residual flip rate of each template in each print
     run. weights: (n_templates,) multiplicities (bootstrap). Returns the standard
@@ -410,7 +410,7 @@ def template_maps(
     folds: np.ndarray,
     chunk: int = 64,
 ) -> np.ndarray:
-    """Residual map of each template: K / n - p at each interior position (methods.md §6.4).
+    """Residual map of each template: K / n - p at each interior position.
 
     codebooks: (n_folds, 512) from cross_fitted_codebooks; folds: (N,) labels 0..n_folds-1.
     Returns (N, side-2, side-2) float32.
@@ -430,7 +430,7 @@ def template_maps(
 def map_stats(
     maps: np.ndarray, halves: np.ndarray, weights: np.ndarray | None = None, ring: int = 2
 ) -> dict:
-    """Stationarity statistics of methods.md §6.4.
+    """Stationarity statistics of the residual maps.
 
     maps: (N, s, s) from template_maps; halves: (N,) 0 or 1, the two halves of templates
     whose mean maps are compared. ring: outer rings of the map left out of the "inner"
@@ -489,7 +489,7 @@ def two_point(
     lags=TWO_POINT_LAGS,
     chunk: int = 64,
 ) -> np.ndarray:
-    """Two-point correlation of standardized residuals (methods.md §6.5), per template.
+    """Two-point correlation of standardized residuals (Tutt 2025, p. 138), per template.
 
     r = (delta - p) / sqrt(p (1 - p)) on interior symbols, p from the codebook of the
     template's fold (p bounded in [1e-4, 1 - 1e-4]); for each lag (dy, dx), the mean of

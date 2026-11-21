@@ -1,4 +1,4 @@
-# C1a: what the 3x3 BPC model misses (methods.md §6, protocol.md §3). Originals only:
+# Noise of originals: what the 3x3 BPC model misses. Originals only:
 # no file or image of fakes is opened.
 data_dir: dataset
 seed: 0
@@ -53,9 +53,9 @@ indigo:
          variability_HPI55_session1_print6_scan1, variability_HPI55_session1_print7_scan1,
          variability_HPI55_session1_print8_scan1, variability_HPI55_session1_print9_scan1,
          variability_HPI55_session1_print10_scan1]
-  # methods.md §6.2: template = rho between prints, print = rho between reads of one print
+  # Noise split: template = rho between prints, print = rho between reads of one print
   # minus that, capture = 1 - rho between reads. HPI76 has repeated prints only in session
-  # 1 and repeated scans only in session 0: its split mixes sessions (decision 2026-11-20).
+  # 1 and repeated scans only in session 0: its split mixes sessions (marked in the figure).
   decomposition:
     HPI55: [prints_HPI55_s1, scans_HPI55_s1]
     HPI55_scans_session0: [prints_HPI55_s1, scans_HPI55_s0]
@@ -63,7 +63,7 @@ indigo:
   # sigma_image and its components: tables templates x reads of each `within` set; and
   # sigma_image of each single file below and of every file of the tables.
   extra_files: [variability_HPI55_session2_print1_scan1, variability_HPI76_session2_print1_scan1]
-  # Position maps (a `within` name or one file; one capture per phone, as in the audit).
+  # Position maps (a `within` name or one file; one capture per phone).
   maps: [prints_HPI55_s1, prints_HPI76_s1, mobile_original_iPhone12Pro_run1,
          mobile_original_SamsungGN20U_run1]
   two_point_files: [variability_HPI55_session1_print1_scan1, variability_HPI76_session1_print1_scan1,
@@ -77,8 +77,8 @@ scantrust:
   # batch_cdp: 50 templates x 5 sheets x 10 copies; codebook from the other groups of 10.
 
 map_ring: 2                  # outer rings of the map left out of the "inner" statistics
-predictions:                 # protocol.md §5.1, written 2026-11-10
+predictions:                 # written down on 2026-11-10, before any run
   H1a: {rho_min: 0.15, ci_low_min: 0.10}
   H1c: {margin: 0.10}
-  H1d: {indigo_ratio: 3.0, scantrust_ratio: 1.1}   # sigma_image / binomial sd (2026-11-20)
+  H1d: {indigo_ratio: 3.0, scantrust_ratio: 1.1}   # sigma_image / binomial sd
   H1e: {sd_reliable_max_pts: 1.0}

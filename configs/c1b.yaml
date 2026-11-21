@@ -1,5 +1,5 @@
-# C1b: models of the flip probability with a context larger than 3x3, judged by their
-# log-loss on templates never used for training (methods.md §5, protocol.md §3).
+# Models of the flip probability with a context larger than 3x3, judged by their
+# log-loss on templates never used for training.
 # Originals only: no file or image of fakes is opened.
 data_dir: dataset
 seed: 0
@@ -9,8 +9,10 @@ backoff_masses: [2, 5, 10, 20, 50, 100, 200, 500]
 logistic_C: [0.01, 0.1, 1, 10, 100]
 trees: {max_iter: 300, learning_rate: 0.1, max_leaf_nodes: 63, min_samples_leaf: 200}
 ceiling_a: [0.5, 1, 2, 4, 8, 16]
-decision: {min_gain: 0.05}   # plan.md: the 25-bit table cuts the validation log-loss by >= 5 %
-prediction_H1b: {min_gain: 0.05, min_rho_cut: 0.333}   # protocol.md §5.1, on the test templates
+# Rule set before the run: the 25-bit table cuts the validation log-loss by >= 5 %.
+decision: {min_gain: 0.05}
+# Prediction set before the run, judged on the test templates.
+prediction_H1b: {min_gain: 0.05, min_rho_cut: 0.333}
 
 indigo:
   # HPI55, session 1, 10 print runs, scan 1. Templates present in all ten files.

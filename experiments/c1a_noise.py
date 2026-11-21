@@ -1,13 +1,13 @@
-"""C1a: what the 3x3 BPC model misses, measured on originals only (methods.md §6).
+"""What the 3x3 BPC model misses, measured on originals only.
 
-Locality (§6.1, §6.2): rho, the share of the noise predicted by the BPC that is in fact
+Locality: rho, the share of the noise predicted by the BPC that is in fact
 reproducible from one read to the next, between prints (Scantrust batch_cdp, Indigo HPI55
 and HPI76), between scans of one print and between phone captures; hence the split of
 the noise into template, print and capture, and the part of the reproducible pattern
 shared between sessions, printers and phones.
-Independence (§6.3): sigma_image, the spread of the flip rate between images beyond the
+Independence: sigma_image, the spread of the flip rate between images beyond the
 binomial noise, and its components (position in the page, print, scan, capture; sheet
-for Scantrust). Stationarity (§6.4): position maps. Two-point correlation (§6.5).
+for Scantrust). Stationarity: position maps. Two-point correlation (Tutt 2025, p. 138).
 
 Each statistic comes with a 95 % percentile interval from a bootstrap on templates, and
 a null reference: the same computation, codebook included, on 200 draws under the BPC
@@ -162,7 +162,7 @@ def locality_within(sums, n, folds, W, rng, n_null):
 
 
 def locality_cross(sums, n, n_b, folds, W, rng, n_null):
-    """Shared part of the reproducible pattern between conditions a and b (§6.1)."""
+    """Shared part of the reproducible pattern between conditions a and b."""
     point = reproducibility_from_sums(sums, n, n_b, folds=folds)
     reps = [reproducibility_from_sums(sums, n, n_b, folds=folds, weights=w) for w in W]
     cells = fold_cells(sums["L"], folds)
@@ -188,7 +188,7 @@ def locality_cross(sums, n, n_b, folds, W, rng, n_null):
 
 
 def decomposition(rho_prints, rho_reads, reps_prints, reps_reads, null_prints, null_reads):
-    """methods.md §6.2: template, print and capture parts of the BPC noise."""
+    """Template, print and capture parts of the BPC noise."""
 
     def parts(p, r):
         return {"template": p, "print": r - p, "capture": 1 - r}
@@ -235,7 +235,7 @@ def table_components(r, ids, w=None):
 
 
 def image_effect_table(D3, L3, ids, W, rng, n_null):
-    """Components of sigma_image on a templates x reads table (§6.3), Indigo."""
+    """Components of sigma_image on a templates x reads table, Indigo."""
     folds = np.arange(len(D3)) % 2
     r, b = residual_flip_rate(D3, L3, folds)
     point = table_components(r, ids)
@@ -327,7 +327,7 @@ class Indigo:
         path = self.pack / f"{name}.npz"
         _, meta = read_compact_header(path)
         if meta["class"] != "original":
-            raise ValueError(f"{name} is not a file of originals: C1a reads no fake")
+            raise ValueError(f"{name} is not a file of originals: this script reads no fake")
         return path
 
     def common_ids(self, names) -> np.ndarray:
@@ -465,7 +465,7 @@ def scantrust_images(data_dir: Path, cfg: dict):
     b = load_scantrust(data_dir, batch.sort_values(["template_id", "print_id"]), stage=STAGE)
     for imgs in (u, b):
         if not (imgs.rows["class"] == "original").all():
-            raise ValueError("C1a reads no fake")
+            raise ValueError("this script reads no fake")
 
     # batch layout: file number p = 100 sheet + 10 rank + copy + 1, sheets 5g..5g+4.
     p = b.rows["print_id"].to_numpy(int) - 1
@@ -490,7 +490,7 @@ def scantrust_images(data_dir: Path, cfg: dict):
     if not np.array_equal(utid[ub], np.arange(BATCH_FIRST_ID, last_batch + 1)):
         raise ValueError("missing unique originals of the batch templates")
     if not (u.t[ub] == t50).all():
-        raise ValueError("unique templates 3501..3550 differ from the batch templates (D-014)")
+        raise ValueError("unique templates 3501..3550 differ from the batch templates")
     return {
         "t_pool": u.t[pool],
         "pool_reads": u.bits[pool],
@@ -534,7 +534,7 @@ def batch_prepare(t50, reads, u_read, ring):
 
 
 def batch_stats(prep, cbU, w=None):
-    """Every batch_cdp statistic of C1a, with template weights w (None = the data)."""
+    """Every batch_cdp statistic of this script, with template weights w (None = the data)."""
     folds, n = prep["folds"], prep["n"]
     sx = prep["sums_x"]
     a = reproducibility_from_sums(sx, n, 1, folds=folds, weights=w, codebook_b=cbU)
@@ -665,7 +665,7 @@ def run_scantrust(data_dir, cfg, n_null, n_boot, ring, rng, log):
 
 
 def predictions(res: dict, cfg: dict) -> dict:
-    """protocol.md §5.1, H1a, H1c, H1d, H1e, judged as written on 2026-11-10."""
+    """Predictions written down on 2026-11-10, before any run, judged as written."""
     p = cfg["predictions"]
     ind, st = res["indigo"], res["scantrust"]
     rho = {
@@ -825,7 +825,7 @@ def plot_fig1_left(result: dict, path: Path) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="C1a: what the 3x3 BPC model misses")
+    parser = argparse.ArgumentParser(description="What the 3x3 BPC model misses, on originals")
     parser.add_argument("--config", type=Path, default=ROOT / "configs" / "c1a.yaml")
     parser.add_argument("--figure", type=Path, help="only redraw Fig. 1 left from a result")
     args = parser.parse_args(argv)

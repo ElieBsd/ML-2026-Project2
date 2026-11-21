@@ -1,4 +1,4 @@
-"""Draws under the BPC model, on given templates: the null reference of C1a and of tests.
+"""Draws under the BPC model on given templates: null reference of the diagnostics and tests.
 
 Under the BPC, each interior symbol of a template flips independently with the
 probability P_b(omega) of its 3x3 pattern (Tutt 2025, Sec. 4.3); the outer ring is never
@@ -8,10 +8,10 @@ judged and is left as it is. Three levels of detail, all with the same law:
     simulate_flip_counts  K = number of flips per position over n reads, drawn directly
                           as Binomial(n, p), without storing the reads;
     simulate_counts       per-image pattern counts D ~ Binomial(L, p), for statistics
-                          that only use counts (methods.md §4.1).
+                          that only use counts.
 
-methods.md §6: the null reference redoes the whole computation, codebook included, on
-such draws (200 of them in C1a).
+The null reference redoes the whole computation, codebook included, on
+such draws (200 of them in experiments/c1a_noise.py).
 """
 
 import numpy as np

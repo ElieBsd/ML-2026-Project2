@@ -47,7 +47,7 @@ def test_clopper_pearson():
     lo, hi = clopper_pearson(0, 500)
     assert lo == 0 and hi == pytest.approx(0.0074, abs=5e-5)
     lo, hi = clopper_pearson(0, 1152)
-    assert hi == pytest.approx(0.0032, abs=5e-5)  # methods.md §11
+    assert hi == pytest.approx(0.0032, abs=5e-5)
     lo, hi = clopper_pearson(10, 10)
     assert hi == 1 and 0.6 < lo < 0.8
     lo, hi = clopper_pearson(50, 100)

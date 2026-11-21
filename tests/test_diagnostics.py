@@ -128,7 +128,7 @@ def test_two_way_components_recover_simulated_effects():
     assert 0.3 < c["sd_read_pts"] < 2.0  # only 10 reads: a rough estimate
 
 
-# ----------------------------------------------------------------------------- C1a suite
+# ------------------------------------------------------------------- noise diagnostics
 
 
 def test_pattern_sums_match_a_direct_count():

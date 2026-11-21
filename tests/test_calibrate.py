@@ -7,7 +7,7 @@ from cdpbpc.calibrate import conformal_rank, conformal_threshold, p_miss_band
 def test_conformal_rank():
     assert conformal_rank(20, 0.05) == 20
     assert conformal_rank(100, 0.05) == 96
-    assert conformal_rank(99, 0.01) == 99  # 1 % needs n >= 99 (methods.md §10)
+    assert conformal_rank(99, 0.01) == 99  # 1 % needs n >= 99
     assert conformal_rank(98, 0.01) == 99
     with pytest.raises(ValueError):
         conformal_rank(10, 0)

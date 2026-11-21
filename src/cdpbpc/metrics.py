@@ -56,7 +56,8 @@ def mcnemar_exact(correct_a: np.ndarray, correct_b: np.ndarray) -> float:
     """Two-sided exact McNemar p-value for two methods judged on the same images.
 
     correct_a, correct_b: (N,) bool, whether each method got each image right. Only
-    images where they disagree count. Not valid on batch_cdp images (D-017).
+    images where they disagree count. Not valid on batch_cdp images: the fakes of one template
+    are not independent.
     """
     a = np.asarray(correct_a, dtype=bool)
     b = np.asarray(correct_b, dtype=bool)

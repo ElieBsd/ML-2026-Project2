@@ -1,5 +1,5 @@
-# P3: masked Hamming distance whose mask of reliable symbols comes from the 5x5 back-off
-# table instead of the 3x3 table (methods.md §9). Both tables are learned on the same
+# Masked Hamming distance whose mask of reliable symbols comes from the 5x5 back-off
+# table instead of the 3x3 table. Both tables are learned on the same
 # originals of the tested condition (blocks E and M, never judged), and both scores use
 # the same positions (distance >= 2 from the border). Thresholds: conformal, on originals.
 data_dir: dataset
@@ -10,7 +10,8 @@ backoff_masses: [2, 5, 10, 20, 50, 100, 200, 500]   # chosen by log-loss, two ha
 n_boot: 2000
 # Commit of the methods freeze (2026-11-25). --stage test refuses to run without it.
 freeze_commit: null
-# plan.md: on development, the 5x5 mask cuts the oracle P_err^min of the 3x3 mask by >= 30 %
+# Rule set before the run, on development: the 5x5 mask cuts the oracle P_err^min
+# of the 3x3 mask by >= 30 %
 decision: {condition: mobile_SamsungGN20U, min_cut: 0.30}
 
 indigo:

@@ -24,7 +24,7 @@ def pcor(t: np.ndarray, y: np.ndarray, k: int = 1) -> float:
 # Scores from pattern counts. D, L: (N, 512) flips and occurrences per image (counts.py);
 # codebook: (512,) flip probabilities P_b of originals. Each returns (N,) float64.
 
-P_CLIP = 1e-4  # p is kept in [1e-4, 1 - 1e-4] inside scores (methods.md §1)
+P_CLIP = 1e-4  # p is kept in [1e-4, 1 - 1e-4] inside scores
 
 
 def hamming(D: np.ndarray, L: np.ndarray) -> np.ndarray:
@@ -57,7 +57,7 @@ def masked_hamming(
         return np.where(symbols > 0, flips / symbols, np.nan)
 
 
-# Reliability classes of methods.md §7.2: class b if edge_b <= P_b < edge_{b+1}, last edge
+# Reliability classes: class b if edge_b <= P_b < edge_{b+1}, last edge
 # included. 8 classes for the profiles and the oracle; 4 for binned_mahalanobis.
 CLASS_EDGES_8 = (0.0, 0.01, 0.05, 0.15, 0.30, 0.50, 0.70, 0.90, 1.0)
 CLASS_EDGES_4 = (0.0, 0.05, 0.30, 0.70, 1.0)
@@ -69,7 +69,7 @@ def reliability_class(p: np.ndarray, edges=CLASS_EDGES_8) -> np.ndarray:
 
 
 def binned_z(D: np.ndarray, L: np.ndarray, codebook: np.ndarray, edges=CLASS_EDGES_8) -> np.ndarray:
-    """centered_z inside each reliability class (methods.md §7.2).
+    """centered_z inside each reliability class.
 
     z_b = sum over the patterns of class b of (D - L p), over sqrt(sum of L p (1 - p)); 0
     when the image has no symbol of class b. Classes follow the codebook P_b, p is kept in
@@ -85,7 +85,7 @@ def binned_z(D: np.ndarray, L: np.ndarray, codebook: np.ndarray, edges=CLASS_EDG
     return np.where(var > 0, num / np.sqrt(np.where(var > 0, var, 1.0)), 0.0)
 
 
-LRT_CLIP = 1e-3  # p and q are kept in [1e-3, 1 - 1e-3] in likelihood ratios (methods.md §7.1)
+LRT_CLIP = 1e-3  # p and q are kept in [1e-3, 1 - 1e-3] in likelihood ratios
 
 
 def lrt(D: np.ndarray, L: np.ndarray, p: np.ndarray, q: np.ndarray) -> np.ndarray:
@@ -93,7 +93,7 @@ def lrt(D: np.ndarray, L: np.ndarray, p: np.ndarray, q: np.ndarray) -> np.ndarra
 
     sum over patterns of D log(q / p) + (L - D) log((1 - q) / (1 - p)); large = suspect.
     p: codebook of originals; q: flip probabilities of fakes, learned on fakes (lrt_plugin,
-    oracle) or predicted without fakes (lrt_vote, methods.md §9). Both (512,), kept in
+    oracle) or predicted without fakes (lrt_vote, cdpbpc.two_pass). Both (512,), kept in
     [1e-3, 1 - 1e-3].
     """
     p = np.clip(np.asarray(p, dtype=np.float64), LRT_CLIP, 1 - LRT_CLIP)

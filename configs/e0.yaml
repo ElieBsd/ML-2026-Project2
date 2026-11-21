@@ -1,4 +1,4 @@
-# E0: facts about the data, redone with the project code.
+# Sanity checks: facts about the data, redone with the project code.
 # Only originals, templates, and the fakes of the development subsets are read (stage dev).
 data_dir: dataset
 seed: 0
@@ -14,5 +14,5 @@ scantrust:
 indigo:
   mask_mu: 0.01            # reliable patterns of the thesis mask (F5)
   codebook_size: 50        # originals of capture 1 for the F5 codebook
-  codebook_draws: 20       # draws of those 50 originals; the first one follows the audit
+  codebook_draws: 20       # draws of those 50 originals; the first one is also reported alone
   quantiles: [0.5, 0.99, 1.0]

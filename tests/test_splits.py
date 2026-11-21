@@ -43,7 +43,7 @@ def test_unique_blocks(seed):
         assert len(b[name]) == size
         assert b[name].min() >= 1 and b[name].max() <= 3500
     every = np.concatenate(list(b.values()))
-    assert not np.any((every >= 3501) & (every <= 3550))  # batch templates (D-014)
+    assert not np.any((every >= 3501) & (every <= 3550))  # batch templates
     np.testing.assert_array_equal(b["V"], np.arange(3551, 4001))
     np.testing.assert_array_equal(b["T"], np.arange(4001, 5001))
 
@@ -251,7 +251,7 @@ def test_development_blocks_match_the_reading_cut(tmp_path):
 
 
 def test_fake_without_original_is_never_judged():
-    """protocol.md §1.3: blocks follow the originals of the condition, so a test fake whose
+    """Blocks follow the originals of the condition, so a test fake whose
     template has no original there is in no block (13 such fakes in all of Indigo)."""
     available = np.setdiff1d(np.arange(1, 1441), [441, 1264])  # originals missing
     b = indigo_blocks("mobile", stage="test", available=available)

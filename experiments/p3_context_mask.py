@@ -1,4 +1,4 @@
-"""P3: the 5x5 flip model in the mask of the masked Hamming distance.
+"""The 5x5 flip model in the mask of the masked Hamming distance.
 
 masked_hamming counts flips only on the symbols that originals almost never get wrong
 (flip probability q <= mu, mu = 0.01). Here q comes from the 5x5 back-off table
@@ -14,8 +14,8 @@ target P_miss with the realized P_miss, AUC, and P_err^min (oracle, to compare w
 thesis only). Conditions: Indigo phones (capture 1), Indigo scanner (both printers,
 four kinds of fakes), Scantrust batch_cdp (the two unsharp attacks).
 
-Decision (plan, development only): on Samsung, the 5x5 mask cuts the P_err^min of the
-3x3 mask by at least 30 %.
+Decision rule, set before the run (development only): on Samsung, the 5x5 mask cuts
+the P_err^min of the 3x3 mask by at least 30 %.
 
 --stage dev reads only the development fakes (Indigo templates 1-288, batch group 0).
 --stage test runs once after the methods freeze and needs freeze_commit in the config.
@@ -372,7 +372,7 @@ def run_scantrust(data_dir: Path, cfg: dict, stage: str, rng, log) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="P3: the 5x5 flip model in the mask")
+    parser = argparse.ArgumentParser(description="The 5x5 flip model in the mask")
     parser.add_argument("--config", type=Path, default=ROOT / "configs" / "p3.yaml")
     parser.add_argument("--stage", choices=STAGES, required=True)
     args = parser.parse_args(argv)

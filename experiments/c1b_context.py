@@ -1,11 +1,11 @@
-"""C1b: does a context larger than 3x3 predict the flips of originals better?
+"""Does a context larger than 3x3 predict the flips of originals better?
 
 Models of the flip probability (cdpbpc.context) are learned on originals of some
 templates and judged by their log-loss on reads of other templates: constant rate, 3x3
 table (the BPC codebook), back-off tables with 13, 21 and 25 bits, ring logistic,
 boosted trees on the 5x5 and 7x7 windows; and the per-position ceiling, which predicts
 each read from the other prints of the same template. Every hyperparameter is chosen on
-validation templates. Measures on the test templates (methods.md §5.3): log-loss per
+validation templates. Measures on the test templates: log-loss per
 symbol read, predicted disagreement between two reads, remaining reproducible share
 rho_left, calibration; 95 % intervals from a bootstrap on templates.
 
@@ -14,8 +14,8 @@ on 289-432, test on 1-288; transfer lines on HPI76 and on the other HPI55 sessio
 Scantrust: train on unique originals 1-3000, validate on 3001-3500, test on unique
 4001-5000 (same session) and on the 50 batch templates x 50 prints (other session).
 
-Decision (plan): the 25-bit table cuts the validation log-loss of the 3x3 table by at
-least 5 % on both datasets.
+Decision rule, set before the run: the 25-bit table cuts the validation log-loss of the
+3x3 table by at least 5 % on both datasets.
 
 Originals only: no file or image of fakes is opened.
 
@@ -86,7 +86,7 @@ class Data:
 
 
 class Models:
-    """Every model of methods.md §5.2, fitted on train, tuned on validation."""
+    """Every flip model, fitted on train, tuned on validation."""
 
     def __init__(self, train: Data, val: Data, cfg: dict, ds_cfg: dict, rng, log):
         m = cfg["margin"]
@@ -138,7 +138,7 @@ class Models:
         self.best = min((k for k in MODELS if k != "constant"), key=self.val_loss.get)
         self.selection["val_loss_learned_draw"] = self.val_loss
         self.selection["best_model"] = self.best
-        # Decision of the plan: tables on the whole validation range.
+        # Decision rule: tables on the whole validation range.
         idx = cx.context_index(val.t, cx.TOP_BITS, m)
         Kva = cx.crop(val.K, m)
         self.val_tables = {
@@ -279,7 +279,7 @@ def indigo_data(data_dir: Path, cfg: dict, log) -> dict:
     def reads(names, ids=None):
         for name in names:
             if read_compact_header(pack / f"{name}.npz")[1]["class"] != "original":
-                raise ValueError(f"{name} is not a file of originals: C1b reads no fake")
+                raise ValueError(f"{name} is not a file of originals: this script reads no fake")
         common = set.intersection(
             *[set(read_compact_header(pack / f"{nm}.npz")[0].tolist()) for nm in names]
         )
@@ -314,7 +314,7 @@ def scantrust_data(data_dir: Path, cfg: dict, log) -> dict:
     )
     for imgs in (u, b):
         if not (imgs.rows["class"] == "original").all():
-            raise ValueError("C1b reads no fake")
+            raise ValueError("this script reads no fake")
     uid = u.rows["template_id"].to_numpy(int)
     one = Data(uid, u.t, (u.bits != u.t).astype(np.uint8), 1)
     bid = b.rows["template_id"].to_numpy(int)
@@ -440,7 +440,7 @@ def decisions(res: dict, cfg: dict) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="C1b: flip models with a larger context")
+    parser = argparse.ArgumentParser(description="Flip models with a larger context")
     parser.add_argument("--config", type=Path, default=ROOT / "configs" / "c1b.yaml")
     parser.add_argument("--figure", type=Path, help="only redraw Fig. 1 right from a result")
     args = parser.parse_args(argv)

@@ -2,7 +2,7 @@
 
 import matplotlib as mpl
 
-# Fig. 1 left: the parts of the noise the BPC predicts (methods.md §6.2).
+# Fig. 1 left: the parts of the noise the BPC predicts.
 NOISE_COLORS = {
     "template": "#1f4e79",  # reproducible from one print to the next
     "print": "#5b9bd5",  # specific to one print, reproducible from one capture to the next
