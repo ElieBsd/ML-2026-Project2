@@ -1,0 +1,18 @@
+# Likelihood-ratio test against the averaging attack, with the fakes' flip probabilities
+# predicted from originals only: the attacker's estimate flips every interior symbol whose
+# pattern has P_b > 0.5, and goes through the two passes (cdpbpc.two_pass). Codebook and
+# prediction from block E; conformal thresholds on the originals of block S.
+data_dir: dataset
+seed: 0
+mu: 0.01                     # masked_hamming, reference score and half of the union variant
+n_boot: 2000                 # bootstrap over templates
+attacks: [otsu, otsu+unsharp, deep+unsharp]
+alphas: [0.05, 0.10]
+# Commit of the methods freeze (2026-11-25). --stage test refuses to run without it.
+freeze_commit: null
+# Rule set before the run, on development (batch group 0):
+# keep the test if AUC(lrt_vote) >= AUC(hamming) + 0.05 on otsu+unsharp
+decision: {attack: otsu+unsharp, min_gain: 0.05}
+# Test stage only: report the union variant or not (true or false, set from the rule
+# on development; --stage test refuses null)
+union: null

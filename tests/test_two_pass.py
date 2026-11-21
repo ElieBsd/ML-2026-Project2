@@ -3,7 +3,13 @@ import pytest
 
 from cdpbpc.patterns import N_PATTERNS, interior, pattern_index
 from cdpbpc.simulate import simulate_reads
-from cdpbpc.two_pass import pooled_profile, predicted_flip_prob, predicted_sums
+from cdpbpc.two_pass import (
+    pooled_profile,
+    predicted_flip_prob,
+    predicted_sums,
+    vote_estimate,
+    vote_profile,
+)
 
 
 def _templates(n, side, seed):
@@ -128,3 +134,74 @@ def test_reprinted_estimate_matches_the_prediction():
     z = (obs_k[ok] / obs_n[ok] - Q[ok]) / np.sqrt(Q[ok] * (1 - Q[ok]) / obs_n[ok])
     assert np.abs(z).max() < 5
     assert abs(z.mean()) < 0.2
+
+
+# ------------------------------------------------------------------- averaging attacker
+
+
+def test_vote_estimate_keeps_the_template_when_no_pattern_is_flipped_often():
+    t = _templates(5, 12, 15)
+    t_hat = vote_estimate(t, np.full(N_PATTERNS, 0.4))
+    np.testing.assert_array_equal(t_hat, t)
+    assert t_hat.dtype == t.dtype and t_hat is not t
+    # exactly 0.5 is not a majority: the symbol is kept
+    np.testing.assert_array_equal(vote_estimate(t, np.full(N_PATTERNS, 0.5)), t)
+
+
+def test_vote_estimate_flips_the_whole_interior_and_keeps_the_border():
+    t = _templates(3, 10, 16)
+    t_hat = vote_estimate(t, np.full(N_PATTERNS, 0.6))
+    np.testing.assert_array_equal(interior(t_hat), 1 - interior(t))
+    border = np.ones(t.shape[1:], bool)
+    border[1:-1, 1:-1] = False
+    np.testing.assert_array_equal(t_hat[:, border], t[:, border])
+
+
+def test_vote_estimate_by_hand():
+    # 4x4 template: interior symbols (1,1), (1,2), (2,1), (2,2)
+    t = np.array(
+        [[1, 0, 0, 1], [0, 1, 1, 0], [0, 0, 1, 0], [1, 1, 0, 0]],
+        dtype=np.uint8,
+    )
+    idx = pattern_index(t)  # patterns of the TRUE template around each interior symbol
+    cb = np.full(N_PATTERNS, 0.1)
+    cb[idx[0, 1]] = 0.9  # only the pattern around (1, 2) is read wrong most of the time
+    assert len({idx[0, 0], idx[0, 1], idx[1, 0], idx[1, 1]}) == 4
+    expected = t.copy()
+    expected[1, 2] = 0
+    np.testing.assert_array_equal(vote_estimate(t, cb), expected)
+    # the estimate follows the patterns of t, not those of its own flipped symbols
+    np.testing.assert_array_equal(vote_estimate(t[None], cb)[0], expected)
+
+
+def test_vote_estimate_rejects_bad_input():
+    t = _templates(1, 8, 17)[0]
+    cb = _codebook(18)
+    with pytest.raises(ValueError):
+        vote_estimate(t, cb[:-1])
+    with pytest.raises(ValueError):
+        vote_estimate(t, np.full(N_PATTERNS, -0.1))
+    with pytest.raises(ValueError):
+        vote_estimate(t * 2, cb)
+    with pytest.raises(ValueError):
+        vote_estimate(t[0], cb)
+
+
+def test_vote_profile_fills_absent_patterns_with_the_codebook():
+    t = _templates(3, 9, 19)
+    cb = _codebook(20)
+    Q = vote_profile(t, cb)
+    Sq, L = predicted_sums(t, vote_estimate(t, cb), cb)
+    seen = L.sum(axis=0) > 0
+    assert (~seen).any()
+    np.testing.assert_allclose(Q[seen], pooled_profile(Sq, L)[seen], rtol=1e-12)
+    np.testing.assert_array_equal(Q[~seen], cb[~seen])
+    w = np.array([1, 0, 2])
+    rows = np.repeat(np.arange(3), w)
+    np.testing.assert_allclose(vote_profile(t, cb, weights=w), vote_profile(t[rows], cb))
+
+
+def test_vote_profile_of_an_attacker_who_flips_nothing_is_the_codebook():
+    t = _templates(10, 20, 21)
+    cb = _codebook(22, 0.0, 0.5)
+    np.testing.assert_allclose(vote_profile(t, cb), cb, rtol=1e-12)
