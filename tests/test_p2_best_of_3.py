@@ -117,3 +117,89 @@ def test_cross_conformal_uses_the_other_half():
     miss = np.concatenate([a_o["hamming"]["pooled"] > ta, b_o["hamming"]["pooled"] > tb])
     assert res["p_miss"] == pytest.approx(miss.mean())
     assert res["n_originals"] == 600 and res["n_fakes"] == 200
+
+
+# ----------------------------------------------------------------- test-stage paths
+
+
+def _phone_files(seed=0):
+    """Synthetic counts of 3 captures; pattern 0 reliable, pattern 1 not.
+
+    Originals of pages 3-6 (templates 289-864) are noisier than those of pages 7-10, so a
+    cross-conformal threshold rejects many of them and a self-calibrated one would not.
+    Original 300 misses capture 2; fake 301 misses capture 3.
+    """
+    rng = np.random.default_rng(seed)
+    ids = np.arange(1, 1441)
+    files = {}
+    for run in (1, 2, 3):
+        for cls in ("original", "fake"):
+            keep = ids
+            if cls == "original" and run == 2:
+                keep = ids[ids != 300]
+            if cls == "fake":
+                keep = ids[ids >= 289] if run != 3 else ids[(ids >= 289) & (ids != 301)]
+            L = np.zeros((len(keep), N_PATTERNS), np.int64)
+            L[:, 0], L[:, 1] = 1000, 200
+            if cls == "fake":
+                p0 = np.full(len(keep), 0.05)
+            else:
+                p0 = np.where((keep >= 289) & (keep <= 864), 0.02, 0.001)
+            D = np.zeros_like(L)
+            D[:, 0] = rng.binomial(1000, p0)
+            D[:, 1] = rng.binomial(200, 0.3, len(keep))
+            name = (
+                f"mobile_original_X_run{run}.npz"
+                if cls == "original"
+                else f"mobile_fake_EHPI55_X_run{run}.npz"
+            )
+            files[name] = SimpleNamespace(ids=keep, D=D, L=L, meta={"class": cls})
+    return files
+
+
+def test_test_stage_judges_each_half_with_the_other_and_skips_incomplete_templates(
+    monkeypatch,
+):
+    import experiments.p2_best_of_3 as p2
+
+    files = _phone_files()
+    monkeypatch.setattr(p2, "indigo_counts", lambda path, stage: files[Path(path).name])
+    cfg = {"captures": [1, 2, 3], "seed": 0, "mu": 0.01, "alphas": [0.01, 0.05]}
+    out = p2.run_phone(Path("pack"), "X", cfg, "test", lambda m: None)
+    info, res = out["info"], out["results"]
+    assert info["fakes_not_judged"] == [300, 301]
+    assert info["n_fakes_judged"] == 1152 - 2
+    assert 300 in info["originals_missing_a_capture"]
+    r = res["masked_hamming"]["single"]["alpha_0.01"]
+    assert r["n_originals"] == 1152 - 1 and r["n_fakes"] == 1150
+    # half a (noisy) judged with the threshold of half b (clean): most of it is rejected
+    assert len(r["tau"]) == 2 and r["tau"][0] < r["tau"][1]
+    assert r["p_miss"] > 0.3
+
+
+def test_main_refuses_the_test_stage_without_freeze_and_never_overwrites(tmp_path, monkeypatch):
+    import yaml
+
+    import experiments.p2_best_of_3 as p2
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("a main() test reached the data")
+
+    monkeypatch.setattr(p2, "indigo_counts", refuse)
+    monkeypatch.setattr(p2, "run_phone", refuse)
+    path = tmp_path / "p2.yaml"
+    path.write_text(yaml.safe_dump({"data_dir": "dataset", "freeze_commit": None}))
+    with pytest.raises(SystemExit, match="freeze_commit"):
+        p2.main(["--config", str(path), "--stage", "test"])
+    monkeypatch.setattr(p2, "RESULTS", tmp_path / "results")
+    path.write_text(yaml.safe_dump({"data_dir": "dataset", "freeze_commit": "abc"}))
+    test = p2.result_path(path.read_text(), "test")
+    assert test != p2.result_path(path.read_text(), "dev")
+    test.parent.mkdir()
+    test.write_text("{}")
+    with pytest.raises(SystemExit, match="runs once"):
+        p2.main(["--config", str(path), "--stage", "test"])
+    assert test.read_text() == "{}"
+    test.unlink()
+    with pytest.raises(SystemExit, match="not a commit"):
+        p2.main(["--config", str(path), "--stage", "test"])

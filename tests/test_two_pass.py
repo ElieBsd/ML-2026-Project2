@@ -205,3 +205,19 @@ def test_vote_profile_of_an_attacker_who_flips_nothing_is_the_codebook():
     t = _templates(10, 20, 21)
     cb = _codebook(22, 0.0, 0.5)
     np.testing.assert_allclose(vote_profile(t, cb), cb, rtol=1e-12)
+
+
+def test_inputs_must_be_binary_and_weights_non_negative():
+    t = _templates(2, 8, 23)
+    cb = _codebook(24)
+    half = t.astype(float)
+    half[0, 3, 3] = 0.5
+    with pytest.raises(ValueError):
+        predicted_flip_prob(half, t, cb)
+    with pytest.raises(ValueError):
+        vote_estimate(half, cb)
+    Sq, L = predicted_sums(t, t, cb)
+    with pytest.raises(ValueError):
+        pooled_profile(Sq, L, weights=np.array([1.0, -1.0]))
+    with pytest.raises(ValueError):
+        pooled_profile(Sq, L, weights=np.array([1.0, 1.0, 1.0]))

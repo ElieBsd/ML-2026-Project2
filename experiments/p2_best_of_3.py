@@ -29,12 +29,14 @@ freeze_commit in the config.
 
 Usage:
     python -m experiments.p2_best_of_3 --config configs/p2.yaml --stage dev
-Writes results/p2_<config hash>.json (the stage is written inside).
+Writes results/p2_<config hash>.json at the development stage and
+results/p2_<config hash>_test.json at the test stage, which refuses to overwrite it.
 """
 
 import argparse
 import hashlib
 import json
+import subprocess
 import time
 from pathlib import Path
 
@@ -50,6 +52,7 @@ from cdpbpc.splits import indigo_blocks
 from experiments.e0_sanity import _round, codebook_of, git_state
 
 ROOT = Path(__file__).resolve().parents[1]
+RESULTS = ROOT / "results"
 SCORES = ("masked_hamming", "hamming")
 RULES = ("single", "pooled", "min3")
 
@@ -224,6 +227,28 @@ def run_phone(pack: Path, device: str, cfg: dict, stage: str, log) -> dict:
     return {"info": info, "results": res}
 
 
+def result_path(text: str, stage: str) -> Path:
+    """Result file of a config text: p2_<hash>.json, or p2_<hash>_test.json at the test stage.
+
+    The test result has its own name so that a later development run with the same
+    config can never overwrite it.
+    """
+    h = hashlib.sha1(text.encode()).hexdigest()[:8]
+    return RESULTS / f"p2_{h}{'_test' if stage == 'test' else ''}.json"
+
+
+def check_freeze_commit(sha) -> None:
+    """Refuse a freeze_commit that is not a commit of this repository."""
+    found = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    if found.returncode != 0:
+        raise SystemExit(f"freeze_commit {sha!r} is not a commit of this repository")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Fusing three phone captures of the same print")
     parser.add_argument("--config", type=Path, default=ROOT / "configs" / "p2.yaml")
@@ -233,6 +258,11 @@ def main(argv: list[str] | None = None) -> int:
     cfg = yaml.safe_load(text)
     if args.stage == "test" and not cfg.get("freeze_commit"):
         raise SystemExit("--stage test needs freeze_commit in the config (methods freeze)")
+    out = result_path(text, args.stage)
+    if args.stage == "test" and out.exists():
+        raise SystemExit(f"{out.name} exists: the test stage runs once")
+    if args.stage == "test":
+        check_freeze_commit(cfg["freeze_commit"])
     start = time.time()
 
     def log(msg):
@@ -261,13 +291,12 @@ def main(argv: list[str] | None = None) -> int:
         }
     result["seconds"] = round(time.time() - start)
     result["git"] = git_state()
-    h = hashlib.sha1(text.encode()).hexdigest()[:8]
-    out = ROOT / "results" / f"p2_{h}.json"
     out.parent.mkdir(exist_ok=True)
-    out.write_text(json.dumps(_round(result, 5), indent=1))
+    with out.open("x" if args.stage == "test" else "w") as f:
+        f.write(json.dumps(_round(result, 5), indent=1))
     if "decision" in result:
         print(json.dumps(_round(result["decision"], 4), indent=1))
-    print(f"written to {out.relative_to(ROOT)}")
+    print(f"written to {out.relative_to(ROOT) if out.is_relative_to(ROOT) else out}")
     return 0
 
 

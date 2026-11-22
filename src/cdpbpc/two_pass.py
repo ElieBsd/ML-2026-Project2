@@ -42,7 +42,7 @@ def _check_pair(t: np.ndarray, t_hat: np.ndarray) -> tuple[np.ndarray, np.ndarra
     t_hat = np.asarray(t_hat)
     if t.shape != t_hat.shape:
         raise ValueError(f"t and t_hat differ in shape: {t.shape} and {t_hat.shape}")
-    if t.size and (t.max() > 1 or t_hat.max() > 1 or t.min() < 0 or t_hat.min() < 0):
+    if not (np.isin(t, (0, 1)).all() and np.isin(t_hat, (0, 1)).all()):
         raise ValueError("t and t_hat must be 0/1")
     return t, t_hat
 
@@ -101,6 +101,8 @@ def pooled_profile(
     if Sq.shape != L.shape or Sq.ndim != 2 or Sq.shape[1] != N_PATTERNS:
         raise ValueError(f"expected two (N, {N_PATTERNS}) arrays, got {Sq.shape} and {L.shape}")
     w = np.ones(len(Sq)) if weights is None else np.asarray(weights, dtype=np.float64)
+    if w.shape != (len(Sq),) or (w < 0).any():
+        raise ValueError(f"expected {len(Sq)} non-negative weights, got shape {w.shape}")
     num = w @ Sq
     den = w @ L
     out = np.full(N_PATTERNS, fill, dtype=np.float64)
