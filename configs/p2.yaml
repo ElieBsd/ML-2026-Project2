@@ -1,0 +1,16 @@
+# Fusing three phone captures of the same print. The minimum of the masked Hamming
+# distance over the captures is compared with one capture and with pooled counts
+# (D and L summed over the captures, Tutt 2025, Table 6.1, p. 135). Codebook from the
+# originals of block E, capture 1, for every rule; conformal thresholds on originals
+# fused the same way. Only templates with all three captures are judged.
+data_dir: dataset
+seed: 0
+mu: 0.01
+devices: [iPhone12Pro, SamsungGN20U]
+captures: [1, 2, 3]          # the first one is the single-capture reference
+alphas: [0.01, 0.05]
+# Commit of the methods freeze (2026-11-25). --stage test refuses to run without it.
+freeze_commit: null
+# Rule set before the run, on development: on Samsung, the minimum of 3 captures
+# (masked Hamming) accepts fewer than 20 % of fakes at a target P_miss of 1 %
+decision: {device: SamsungGN20U, alpha: 0.01, max_p_fa: 0.20}
