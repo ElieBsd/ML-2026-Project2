@@ -22,12 +22,14 @@ the P_err^min of the 3x3 mask by at least 30 %.
 
 Usage:
     python -m experiments.p3_context_mask --config configs/p3.yaml --stage dev
-Writes results/p3_<config hash>.json (the stage is written inside).
+Writes results/p3_<config hash>.json at the development stage and
+results/p3_<config hash>_test.json at the test stage, which refuses to overwrite it.
 """
 
 import argparse
 import hashlib
 import json
+import subprocess
 import time
 from pathlib import Path
 
@@ -52,6 +54,7 @@ from cdpbpc.splits import batch_fold, indigo_blocks
 from experiments.e0_sanity import _round, git_state
 
 ROOT = Path(__file__).resolve().parents[1]
+RESULTS = ROOT / "results"
 SCORES = ("mask_5x5", "mask_3x3", "thesis_mask_3x3_E")
 CHUNK = 64
 
@@ -371,6 +374,28 @@ def run_scantrust(data_dir: Path, cfg: dict, stage: str, rng, log) -> dict:
 # --------------------------------------------------------------------------------- main
 
 
+def result_path(text: str, stage: str) -> Path:
+    """Result file of a config text: p3_<hash>.json, or p3_<hash>_test.json at the test stage.
+
+    The test result has its own name so that a later development run with the same
+    config can never overwrite it.
+    """
+    h = hashlib.sha1(text.encode()).hexdigest()[:8]
+    return RESULTS / f"p3_{h}{'_test' if stage == 'test' else ''}.json"
+
+
+def check_freeze_commit(sha) -> None:
+    """Refuse a freeze_commit that is not a commit of this repository."""
+    found = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    if found.returncode != 0:
+        raise SystemExit(f"freeze_commit {sha!r} is not a commit of this repository")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="The 5x5 flip model in the mask")
     parser.add_argument("--config", type=Path, default=ROOT / "configs" / "p3.yaml")
@@ -380,6 +405,11 @@ def main(argv: list[str] | None = None) -> int:
     cfg = yaml.safe_load(text)
     if args.stage == "test" and not cfg.get("freeze_commit"):
         raise SystemExit("--stage test needs freeze_commit in the config (methods freeze)")
+    out = result_path(text, args.stage)
+    if args.stage == "test" and out.exists():
+        raise SystemExit(f"{out.name} exists: the test stage runs once")
+    if args.stage == "test":
+        check_freeze_commit(cfg["freeze_commit"])
     data_dir = ROOT / cfg["data_dir"]
     start = time.time()
 
@@ -407,13 +437,12 @@ def main(argv: list[str] | None = None) -> int:
             "continue_P3": r["p_err_min_cut_5x5_vs_3x3"] >= d["min_cut"],
         }
     result["seconds"] = round(time.time() - start)
-    h = hashlib.sha1(text.encode()).hexdigest()[:8]
-    out = ROOT / "results" / f"p3_{h}.json"
     out.parent.mkdir(exist_ok=True)
-    out.write_text(json.dumps(_round(result, 5), indent=1))
+    with out.open("x" if args.stage == "test" else "w") as f:
+        f.write(json.dumps(_round(result, 5), indent=1))
     if "decision" in result:
         print(json.dumps(_round(result["decision"], 4), indent=1))
-    print(f"written to {out.relative_to(ROOT)}")
+    print(f"written to {out.relative_to(ROOT) if out.is_relative_to(ROOT) else out}")
     return 0
 
 
