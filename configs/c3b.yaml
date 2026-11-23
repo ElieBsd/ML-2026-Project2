@@ -19,10 +19,11 @@ scantrust:
 freeze_commit: null
 # Prediction written before any run, judged on the test templates only (development:
 # reported as an indication, no decision).
-# - phone: on iPhone, the per-pattern correlation between predicted and observed
-#   Q - P (P = originals of the same templates, plain correlation) is above 0.5;
+# - phone: on iPhone, the plain per-pattern correlation between predicted and observed
+#   Q - P is above 0.5, both with P = originals of the same templates (P_obs) and with
+#   P = codebook of block E (P_b, which does not share the sampling noise of P_obs);
 # - averaging: on batch_cdp, the predicted and the observed Q - P are both positive in
 #   every reliability class with P_b >= 0.5, for the two averaging attacks.
 prediction:
-  phone: {device: iPhone12Pro, min_corr: 0.5}
+  phone: {device: iPhone12Pro, min_corr: 0.5, references: [P_obs, P_b]}
   averaging: {attacks: [otsu+unsharp, deep+unsharp], p_min: 0.5}

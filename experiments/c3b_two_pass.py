@@ -539,13 +539,24 @@ def run_scantrust(data_dir: Path, cfg: dict, stage: str, rng, log) -> dict:
 def judge_prediction(res: dict, pred: dict) -> dict:
     """The prediction set in the config, checked on the results.
 
-    Phone: per-pattern correlation of Q - P (P = originals of the same templates, plain
-    correlation) above min_corr. Averaging attacks: Q_pred - P_obs and Q_obs - P_obs
-    both positive in every class with lower edge >= p_min.
+    Phone: plain per-pattern correlation of Q - P above min_corr for every reference P
+    listed (P_obs = originals of the same templates; P_b = codebook of block E, which does
+    not share the sampling noise of P_obs). Averaging attacks: Q_pred - P_obs and
+    Q_obs - P_obs both positive in every class with lower edge >= p_min.
     """
     ph = pred["phone"]
-    corr = res["indigo"]["mobile"][ph["device"]]["per_pattern"]["P_obs"]["corr"]
-    out = {"phone": {"device": ph["device"], "corr": corr, "holds": bool(corr > ph["min_corr"])}}
+    refs = list(ph["references"])
+    if not refs or not set(refs) <= {"P_obs", "P_b"}:
+        raise ValueError(f"phone references must be among P_obs and P_b, got {refs}")
+    pp = res["indigo"]["mobile"][ph["device"]]["per_pattern"]
+    corr = {ref: pp[ref]["corr"] for ref in refs}
+    out = {
+        "phone": {
+            "device": ph["device"],
+            "corr": corr,
+            "holds": bool(all(c > ph["min_corr"] for c in corr.values())),
+        }
+    }
     av = pred["averaging"]
     for a in av["attacks"]:
         rows = [r for r in res["scantrust"]["batch"][a]["by_class"] if r["class"][0] >= av["p_min"]]

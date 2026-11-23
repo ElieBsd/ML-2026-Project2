@@ -244,18 +244,33 @@ def test_judge_prediction():
     pos = classes([-1] * 5 + [0.1] * 3, [-1] * 5 + [0.05] * 3)
     neg = classes([0.1] * 8, [0.1] * 7 + [-0.01])
     res = {
-        "indigo": {"mobile": {"P": {"per_pattern": {"P_obs": {"corr": 0.6}}}}},
+        "indigo": {
+            "mobile": {"P": {"per_pattern": {"P_obs": {"corr": 0.6}, "P_b": {"corr": 0.7}}}}
+        },
         "scantrust": {"batch": {"a": {"by_class": pos}, "b": {"by_class": neg}}},
     }
     pred = {
-        "phone": {"device": "P", "min_corr": 0.5},
+        "phone": {"device": "P", "min_corr": 0.5, "references": ["P_obs", "P_b"]},
         "averaging": {"attacks": ["a", "b"], "p_min": 0.5},
     }
     out = judge_prediction(res, pred)
     assert out["phone"]["holds"] and out["batch_a"]["holds"] and not out["batch_b"]["holds"]
+    assert out["phone"]["corr"] == {"P_obs": 0.6, "P_b": 0.7}
     assert len(out["batch_a"]["gap_pred"]) == 3
-    res["indigo"]["mobile"]["P"]["per_pattern"]["P_obs"]["corr"] = 0.5
-    assert not judge_prediction(res, pred)["phone"]["holds"]
+    pp = res["indigo"]["mobile"]["P"]["per_pattern"]
+    # the phone prediction needs every listed reference above the bar
+    for ref in ("P_obs", "P_b"):
+        keep = pp[ref]["corr"]
+        pp[ref]["corr"] = 0.5
+        assert not judge_prediction(res, pred)["phone"]["holds"]
+        pp[ref]["corr"] = keep
+    pred["phone"]["references"] = ["P_obs"]
+    pp["P_b"]["corr"] = 0.1
+    assert judge_prediction(res, pred)["phone"]["holds"]
+    for bad in ([], ["P_x"]):
+        pred["phone"]["references"] = bad
+        with pytest.raises(ValueError):
+            judge_prediction(res, pred)
 
 
 # ---------------------------------------------------------------------------- guards
@@ -424,7 +439,7 @@ def _cfg(tmp_path, **extra):
         "scantrust": {"unique_attacks": ["otsu"], "batch_attacks": ["otsu+unsharp"]},
         "freeze_commit": None,
         "prediction": {
-            "phone": {"device": "iPhone12Pro", "min_corr": 0.5},
+            "phone": {"device": "iPhone12Pro", "min_corr": 0.5, "references": ["P_obs", "P_b"]},
             "averaging": {"attacks": ["otsu+unsharp"], "p_min": 0.5},
         },
         **extra,
