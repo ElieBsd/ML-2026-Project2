@@ -21,6 +21,9 @@ original, a vote over originals...). Nothing here produces an image of a fake.
 vote_estimate gives one such t_hat from the codebook alone: the estimate of an attacker
 who takes a majority vote over many reads of the same print (the averaging attack).
 vote_profile is the predicted codebook of the fakes of that attacker.
+
+majority_estimate is a t_hat from data: the per-position majority over several
+binarized reads of the same template (for instance all its printed originals).
 """
 
 import numpy as np
@@ -154,3 +157,22 @@ def vote_profile(
     absent = np.isnan(Q)
     Q[absent] = codebook[absent]
     return Q
+
+
+def majority_estimate(reads: np.ndarray) -> np.ndarray:
+    """Per-position majority vote over several binarized reads of one template.
+
+    reads: (m, L, L) binary, 1 = white, m >= 1 reads of prints of the same template. A
+    position is white if strictly more than half of the reads are white; a tie (m even)
+    gives black (0). Every position votes, the outer ring included (it enters the 3x3
+    patterns of the symbols next to it). Returns (L, L) uint8.
+    """
+    reads = np.asarray(reads)
+    if reads.ndim != 3:
+        raise ValueError(f"expected (m, L, L) reads of one template, got {reads.shape}")
+    if len(reads) == 0:
+        raise ValueError("expected at least one read")
+    if not np.isin(reads, (0, 1)).all():
+        raise ValueError("reads must be 0/1")
+    white = reads.sum(axis=0, dtype=np.int64)
+    return (2 * white > len(reads)).astype(np.uint8)

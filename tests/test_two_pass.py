@@ -4,6 +4,7 @@ import pytest
 from cdpbpc.patterns import N_PATTERNS, interior, pattern_index
 from cdpbpc.simulate import simulate_reads
 from cdpbpc.two_pass import (
+    majority_estimate,
     pooled_profile,
     predicted_flip_prob,
     predicted_sums,
@@ -221,3 +222,43 @@ def test_inputs_must_be_binary_and_weights_non_negative():
         pooled_profile(Sq, L, weights=np.array([1.0, -1.0]))
     with pytest.raises(ValueError):
         pooled_profile(Sq, L, weights=np.array([1.0, 1.0, 1.0]))
+
+
+# ----------------------------------------------------------- majority of several reads
+
+
+def test_majority_estimate_by_hand_and_ties():
+    reads = np.array(
+        [
+            [[1, 1], [0, 0]],
+            [[1, 0], [0, 1]],
+            [[1, 0], [1, 1]],
+            [[0, 0], [1, 1]],
+        ],
+        dtype=np.uint8,
+    )
+    # white votes per position: 3, 1, 2, 3 out of 4; the tie (2 of 4) goes to black (0)
+    np.testing.assert_array_equal(majority_estimate(reads), [[1, 0], [0, 1]])
+    np.testing.assert_array_equal(majority_estimate(reads[:3]), [[1, 0], [0, 1]])
+    np.testing.assert_array_equal(majority_estimate(reads[:1]), reads[0])
+    out = majority_estimate(reads)
+    assert out.dtype == np.uint8 and out.shape == (2, 2)
+
+
+def test_majority_of_many_bpc_reads_flips_exactly_the_unreliable_patterns():
+    t = _templates(3, 20, 7)
+    cb = _codebook(8, 0.0, 0.3)
+    cb[_codebook(9) > 0.8] = 0.85  # some patterns read wrong most of the time
+    rng = np.random.default_rng(10)
+    reads = simulate_reads(t, cb, 301, rng)  # (301, 3, 20, 20)
+    est = np.stack([majority_estimate(reads[:, i]) for i in range(len(t))])
+    np.testing.assert_array_equal(interior(est), interior(vote_estimate(t, cb)))
+
+
+def test_majority_estimate_refuses_bad_inputs():
+    with pytest.raises(ValueError):
+        majority_estimate(np.zeros((4, 4), np.uint8))  # a single image, not a stack
+    with pytest.raises(ValueError):
+        majority_estimate(np.zeros((0, 4, 4), np.uint8))  # no read
+    with pytest.raises(ValueError):
+        majority_estimate(np.full((3, 4, 4), 2, np.uint8))  # not binary

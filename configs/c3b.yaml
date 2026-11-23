@@ -1,0 +1,28 @@
+# Flip profile of fakes predicted without any fake (two passes: the attacker's estimate
+# of the template is printed and captured again), compared with real fakes.
+# Codebook P_b from the originals of block E of the condition where the fakes are
+# captured; the estimate t_hat comes from the archive (Indigo) or from our originals
+# (Scantrust: binarization of the original, or majority of the 50 originals).
+data_dir: dataset
+seed: 0                      # draw of block E (Indigo, unique_cdp) and bootstrap
+n_boot: 2000                 # bootstrap over templates
+mu: 0.01                     # masked Hamming: patterns with P_b <= mu
+min_occurrences: 200         # per-pattern statistics: patterns with more symbols in the fakes
+indigo:
+  mobile: {devices: [iPhone12Pro, SamsungGN20U], capture: 1, estimate: EHPI55}
+  # [printer that reprinted the fake, prints the estimate was made from]
+  scanner: {pairs: [[HPI55, EHPI55], [HPI55, EHPI76], [HPI76, EHPI55], [HPI76, EHPI76]]}
+scantrust:
+  unique_attacks: [otsu, otsu+unsharp, deep, deep+unsharp]
+  batch_attacks: [otsu, otsu+unsharp, deep+unsharp]
+# Commit of the methods freeze (2026-11-25). --stage test refuses to run without it.
+freeze_commit: null
+# Prediction written before any run, judged on the test templates only (development:
+# reported as an indication, no decision).
+# - phone: on iPhone, the per-pattern correlation between predicted and observed
+#   Q - P (P = originals of the same templates, plain correlation) is above 0.5;
+# - averaging: on batch_cdp, the predicted and the observed Q - P are both positive in
+#   every reliability class with P_b >= 0.5, for the two averaging attacks.
+prediction:
+  phone: {device: iPhone12Pro, min_corr: 0.5}
+  averaging: {attacks: [otsu+unsharp, deep+unsharp], p_min: 0.5}
