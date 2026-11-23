@@ -8,12 +8,16 @@ from cdpbpc.patterns import interior, pattern_index
 from cdpbpc.scores import (
     CLASS_EDGES_4,
     CLASS_EDGES_8,
+    MahalanobisFit,
+    binned_mahalanobis,
     binned_z,
     centered_z,
+    fit_binned_mahalanobis,
     hamming,
     lrt,
     masked_hamming,
     pcor,
+    pll,
     reliability_class,
 )
 from cdpbpc.simulate import simulate_counts
@@ -185,3 +189,123 @@ def test_lrt_is_larger_for_reads_drawn_like_fakes():
     originals = lrt(simulate_counts(L, p, rng), L, p, q)
     fakes = lrt(simulate_counts(L, q, rng), L, p, q)
     assert fakes.mean() > originals.mean() and (fakes > np.median(originals)).mean() > 0.9
+
+
+# ----------------------------------------------------------------------------- pll
+
+
+def test_pll_hand_example():
+    codebook = np.full(512, 0.2)
+    codebook[:2] = [0.1, 0.5]
+    D = np.zeros((1, 512), int)
+    L = np.zeros((1, 512), int)
+    D[0, 0], L[0, 0], L[0, 1] = 1, 3, 2  # pattern 0: 1 flip in 3; pattern 1: 0 flip in 2
+    expected = -(np.log(0.1) + 2 * np.log(0.9) + 2 * np.log(0.5))
+    assert pll(D, L, codebook)[0] == pytest.approx(expected, rel=1e-12)
+
+
+def test_pll_matches_thesis_formula_4_9_per_symbol():
+    # PLL = sum over symbols of log pi, pi = 1 - P_b if read right, P_b if flipped.
+    _, D, L, d, p_raw, codebook = _example(10)
+    p = np.clip(p_raw, 1e-4, 1 - 1e-4)
+    log_pi = np.where(d == 1, np.log(p), np.log(1 - p))
+    np.testing.assert_allclose(pll(D, L, codebook), -log_pi.sum(1), rtol=1e-12)
+
+
+def test_pll_is_large_when_reliable_patterns_flip():
+    codebook = np.full(512, 0.3)
+    codebook[0] = 0.001
+    L = np.zeros((2, 512), int)
+    L[:, 0] = L[:, 1] = 10
+    D = np.zeros((2, 512), int)
+    D[0, 1] = 1  # one flip on an unreliable pattern
+    D[1, 0] = 1  # one flip on a reliable pattern
+    s = pll(D, L, codebook)
+    assert s[1] > s[0]
+    assert np.isfinite(pll(D, L, np.zeros(512))).all()  # p = 0 is clipped, no inf
+
+
+# ----------------------------------------------------------------------------- binned_mahalanobis
+
+
+def _class_codebook(rng, edges=CLASS_EDGES_4):
+    cb = np.concatenate([rng.uniform(lo, hi, 128) for lo, hi in itertools.pairwise(edges)])
+    rng.shuffle(cb)
+    return cb
+
+
+def _bpc_images(rng, codebook, n):
+    L = rng.multinomial(22 * 22, np.full(512, 1 / 512), size=n)
+    return simulate_counts(L, codebook, rng), L
+
+
+def test_binned_mahalanobis_matches_direct_computation():
+    rng = np.random.default_rng(11)
+    cb = _class_codebook(rng)
+    DM, LM = _bpc_images(rng, cb, 150)
+    D, L = _bpc_images(rng, cb, 20)
+    fit = fit_binned_mahalanobis(DM, LM, cb)
+    zM = binned_z(DM, LM, cb, CLASS_EDGES_4)
+    m = zM.mean(0)
+    S = np.cov(zM, rowvar=False) + 1e-6 * np.eye(4)
+    z = binned_z(D, L, cb, CLASS_EDGES_4)
+    expected = np.einsum("ni,ij,nj->n", z - m, np.linalg.inv(S), z - m)
+    np.testing.assert_allclose(binned_mahalanobis(D, L, cb, fit), expected, rtol=1e-9)
+    np.testing.assert_allclose(fit.mean, m)
+
+
+def test_binned_mahalanobis_with_identity_fit_is_sum_of_squares():
+    _, D, L, _, _, codebook = _example(12)
+    fit = MahalanobisFit(np.zeros(4), np.eye(4))
+    z = binned_z(D, L, codebook, CLASS_EDGES_4)
+    np.testing.assert_allclose(binned_mahalanobis(D, L, codebook, fit), (z**2).sum(1))
+
+
+def test_binned_mahalanobis_mean_is_four_under_bpc():
+    # Exact m and S would give a mean of K = 4 (number of classes).
+    rng = np.random.default_rng(13)
+    cb = _class_codebook(rng)
+    fit = fit_binned_mahalanobis(*_bpc_images(rng, cb, 20000), cb)
+    s = binned_mahalanobis(*_bpc_images(rng, cb, 20000), cb, fit)
+    assert s.mean() == pytest.approx(4.0, abs=0.1)
+    assert (s >= 0).all()
+
+
+def test_binned_mahalanobis_mean_with_150_originals_in_m():
+    # m and S estimated on n = 150 originals: a new original scores on average
+    # K (n + 1)(n - 1) / (n (n - K - 2)) = 4.17, not 4. Not a bug.
+    rng = np.random.default_rng(14)
+    cb = _class_codebook(rng)
+    n, K = 150, 4
+    means = []
+    for _ in range(300):
+        fit = fit_binned_mahalanobis(*_bpc_images(rng, cb, n), cb)
+        means.append(binned_mahalanobis(*_bpc_images(rng, cb, 100), cb, fit).mean())
+    expected = K * (n + 1) * (n - 1) / (n * (n - K - 2))
+    assert np.mean(means) == pytest.approx(expected, abs=0.06)
+    assert np.mean(means) > 4.05
+
+
+def test_binned_mahalanobis_empty_class_gives_finite_scores():
+    _, D, L, _, _, _ = _example(15, n=30)
+    cb = np.full(512, 0.2)  # every pattern in class 1 of 4
+    fit = fit_binned_mahalanobis(D[:20], L[:20], cb)
+    s = binned_mahalanobis(D[20:], L[20:], cb, fit)
+    assert np.isfinite(fit.inv_cov).all() and np.isfinite(s).all()
+
+
+def test_binned_mahalanobis_fit_depends_only_on_block_m():
+    rng = np.random.default_rng(16)
+    cb = _class_codebook(rng)
+    DM, LM = _bpc_images(rng, cb, 150)
+    fit = fit_binned_mahalanobis(DM, LM, cb)
+    D, L = _bpc_images(rng, cb, 10)
+    one = binned_mahalanobis(D, L, cb, fit)
+    both = binned_mahalanobis(np.r_[D, D + 3], np.r_[L, L + 5], cb, fit)
+    np.testing.assert_allclose(both[:10], one)  # judging more images changes nothing
+
+
+def test_binned_mahalanobis_fit_needs_two_originals():
+    _, D, L, _, _, codebook = _example(17)
+    with pytest.raises(ValueError):
+        fit_binned_mahalanobis(D[:1], L[:1], codebook)

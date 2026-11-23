@@ -1,5 +1,7 @@
 """Authentication scores. All scores are oriented so that large = suspect."""
 
+from typing import NamedTuple
+
 import numpy as np
 
 
@@ -57,6 +59,20 @@ def masked_hamming(
         return np.where(symbols > 0, flips / symbols, np.nan)
 
 
+def pll(D: np.ndarray, L: np.ndarray, codebook: np.ndarray) -> np.ndarray:
+    """Minus the posterior log-likelihood of the read under BPC (Tutt 2025, eq. 4.9, p. 85).
+
+    PLL = sum over symbols of log pi, pi = 1 - P_b if read right and P_b if flipped, i.e.
+    sum over patterns of D log p + (L - D) log(1 - p). The score is -PLL, so an image the
+    model of originals finds unlikely is suspect. p is kept in [1e-4, 1 - 1e-4]. For
+    p > 0.5 a flip is more likely than a right read and lowers the score.
+    """
+    p = np.clip(np.asarray(codebook, dtype=np.float64), P_CLIP, 1 - P_CLIP)
+    D = np.asarray(D, dtype=np.float64)
+    L = np.asarray(L, dtype=np.float64)
+    return -(D @ np.log(p) + (L - D) @ np.log(1 - p))
+
+
 # Reliability classes: class b if edge_b <= P_b < edge_{b+1}, last edge
 # included. 8 classes for the profiles and the oracle; 4 for binned_mahalanobis.
 CLASS_EDGES_8 = (0.0, 0.01, 0.05, 0.15, 0.30, 0.50, 0.70, 0.90, 1.0)
@@ -83,6 +99,43 @@ def binned_z(D: np.ndarray, L: np.ndarray, codebook: np.ndarray, edges=CLASS_EDG
     num = (D - L * p) @ onehot
     var = (L * p * (1 - p)) @ onehot
     return np.where(var > 0, num / np.sqrt(np.where(var > 0, var, 1.0)), 0.0)
+
+
+class MahalanobisFit(NamedTuple):
+    """Mean and inverse covariance of the 4 per-class z of the originals of block M."""
+
+    mean: np.ndarray  # (4,)
+    inv_cov: np.ndarray  # (4, 4)
+
+
+MAHALANOBIS_RIDGE = 1e-6  # added to the diagonal of the covariance
+
+
+def fit_binned_mahalanobis(D: np.ndarray, L: np.ndarray, codebook: np.ndarray) -> MahalanobisFit:
+    """Learn the mean m and covariance S of binned_z (4 classes) on originals only.
+
+    D, L: counts of the originals of block M, never of the judged images. S is the
+    unbiased covariance plus 1e-6 on the diagonal, so it stays invertible when a class
+    is empty.
+    """
+    z = binned_z(D, L, codebook, CLASS_EDGES_4)
+    if len(z) < 2:
+        raise ValueError(f"need at least 2 originals to estimate a covariance, got {len(z)}")
+    cov = np.cov(z, rowvar=False) + MAHALANOBIS_RIDGE * np.eye(z.shape[1])
+    return MahalanobisFit(z.mean(axis=0), np.linalg.inv(cov))
+
+
+def binned_mahalanobis(
+    D: np.ndarray, L: np.ndarray, codebook: np.ndarray, fit: MahalanobisFit
+) -> np.ndarray:
+    """(z - m)^T S^-1 (z - m), z = binned_z with 4 classes, m and S from fit_binned_mahalanobis.
+
+    How far an image is from the cloud of originals, class by class. About 4 (the number
+    of classes) on average for originals under BPC, a little more when m and S come from
+    few originals.
+    """
+    dz = binned_z(D, L, codebook, CLASS_EDGES_4) - fit.mean
+    return np.einsum("ni,ij,nj->n", dz, fit.inv_cov, dz)
 
 
 LRT_CLIP = 1e-3  # p and q are kept in [1e-3, 1 - 1e-3] in likelihood ratios
