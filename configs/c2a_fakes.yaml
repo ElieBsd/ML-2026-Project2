@@ -1,0 +1,20 @@
+# Transfer of a detector with fakes (Indigo). Fakes exist in session 0 at the scanner
+# and in capture 1 of the phones only. Blocks as in configs/c3a.yaml (seed, E, M).
+data_dir: dataset
+seed: 0
+mu: 0.01                 # masked_hamming (thesis p. 107)
+recal_K: [20, 50, 100]   # target originals for the recalibrated threshold
+recal_draws: 50
+band_level: 0.90         # Beta band of the realized P_miss
+freeze_commit: null      # set at the methods freeze, before --stage test
+
+session:                 # scanner: enrolled in session 1, judged in session 0
+  reference: variability_{printer}_session1_print1_scan1
+  printers: [HPI55, HPI76]
+  fakes: [HPI55_EHPI55, HPI55_EHPI76, HPI76_EHPI55, HPI76_EHPI76]
+  alphas: [0.05]
+
+phone:                   # codebook and threshold of one phone, judged on the other
+  capture_run: 1
+  pairs: [[iPhone12Pro, SamsungGN20U], [SamsungGN20U, iPhone12Pro]]
+  alphas: [0.01, 0.05]

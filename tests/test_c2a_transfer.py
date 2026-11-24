@@ -214,3 +214,124 @@ def test_run_refuses_a_file_of_fakes():
     }
     with pytest.raises(SystemExit):
         c2a.run(_small_config(), files.__getitem__, lambda m: None)
+
+
+# ----------------------------------------------------------------------------- Scantrust
+
+
+def _scantrust(rng, shift_batch=1.0):
+    """Simulated Scantrust originals: unique 1..5000, batch 3501..3550 x 50 copies."""
+    cb = _codebook(rng)
+    s, r, c = np.meshgrid(np.arange(25), np.arange(10), np.arange(10), indexing="ij")
+    s, r, c = s.ravel(), r.ravel(), c.ravel()
+    b_ids = 3501 + 10 * (s // 5) + r
+    b_prints = 100 * s + 10 * r + c + 1
+    u = _file(rng, cb, np.arange(1, 5001))
+    b = _file(rng, np.clip(cb * shift_batch, 0, 0.99), b_ids)
+    return SimpleNamespace(
+        ids=np.r_[u.ids, b.ids],
+        prints=np.r_[np.full(5000, np.nan), b_prints],
+        dataset=np.array(["unique"] * 5000 + ["batch"] * 2500),
+        D=np.r_[u.D, b.D],
+        L=np.r_[u.L, b.L],
+    )
+
+
+def test_rates_by_template_and_recalibration_on_whole_templates():
+    rng = np.random.default_rng(8)
+    cb = _codebook(rng)
+    tids = np.repeat(np.arange(10), 50)
+    f = _file(rng, cb, np.arange(600))
+    det = c2a.enrol(f.ids, f.D, f.L, SIZES, rng, 0.01)
+    t = _file(rng, np.clip(cb * 1.3, 0, 0.99), tids)
+    t.D[tids == 3] = 0  # one template never rejected
+    target = c2a.all_scores(t.D, t.L, det.codebook, det.fit, 0.01)
+    cfg = {**CFG, "recal_K": [20, 50, 100, 500], "recal_draws": 30}
+    res = c2a.pair_result_by_template(det, target, tids, cfg, rng)
+    tau = conformal_threshold(det.cal["hamming"], 0.05)
+    per = [np.mean(target["hamming"][tids == g] > tau) for g in range(10)]
+    assert res["fixed"]["hamming"][0.05] == pytest.approx(np.mean(per))
+    assert per[3] == 0 and res["n_templates"] == 10
+    rec = res["recal"]["hamming"][0.05]
+    assert set(rec) == {50, 100}  # 20 is not whole templates, 500 leaves none to judge
+    assert rec[100]["templates_per_draw"] == 2 and len(rec[100]["p_miss"]) == 30
+    with pytest.raises(ValueError):
+        c2a.pair_result_by_template(det, target, tids[:-1].tolist() + [99], cfg, rng)
+
+
+def test_recalibrated_p_miss_is_measured_on_the_other_templates():
+    # every image of template g scores g: a threshold on templates {g1, g2} is max(g1, g2)
+    tids = np.repeat(np.arange(10), 50)
+    target = {k: tids.astype(float) for k in c2a.SCORES}
+    det = SimpleNamespace(cal={k: np.arange(100.0) for k in c2a.SCORES})
+    cfg = {**CFG, "recal_K": [100], "recal_draws": 20}
+    res = c2a.pair_result_by_template(det, target, tids, cfg, np.random.default_rng(0))
+    drawn = res["recal_templates"][100]
+    expect = [np.mean([g > max(d) for g in range(10) if g not in d]) for d in drawn]
+    np.testing.assert_allclose(res["recal"]["hamming"][0.05][100]["p_miss"], expect)
+
+
+def test_scantrust_rows_keep_blocks_apart(monkeypatch):
+    rng = np.random.default_rng(9)
+    st = _scantrust(rng, shift_batch=1.3)
+    seen = []
+    real = c2a.detector_from_blocks
+
+    def spy(ids, D, L, iE, iM, iS, mu):
+        det = real(ids, D, L, iE, iM, iS, mu)
+        seen.append((iE, iM, iS))
+        return det
+
+    monkeypatch.setattr(c2a, "detector_from_blocks", spy)
+    cfg = {
+        **CFG,
+        "seed": 0,
+        "recal_K": [50, 100],
+        "recal_draws": 5,
+        "scantrust": {"unique_seeds": 2, "batch_groups": [0, 1, 2, 3, 4]},
+    }
+    res = c2a.run_scantrust(cfg, st, lambda m: None)
+    assert {k: len(v["pairs"]) for k, v in res.items()} == {
+        "scantrust_same": 2,
+        "scantrust_sheets": 20,
+        "scantrust_session": 7,
+    }
+    for iE, iM, iS in seen:
+        e, m, s = (set(st.ids[x]) for x in (iE, iM, iS))
+        assert not (e & m or e & s or m & s)
+        if st.dataset[iE][0] == "batch":
+            assert iE.sum() == 50 and len(e) == 10  # one copy per template and sheet
+            assert np.all((st.prints[iE] - 1) % 10 == 0)
+    for p in res["scantrust_sheets"]["pairs"]:
+        r, t = int(p["ref"][-1]), int(p["target"][-1])
+        assert len({r, t, p["E_group"], p["M_group"]}) == 4
+        assert p["n_target"] == 500 and p["n_templates"] == 10
+    sess = res["scantrust_session"]["pairs"]
+    assert [p["n_target"] for p in sess] == [2500, 2500, 3500, 3500, 3500, 3500, 3500]
+    same = res["scantrust_same"]["pairs"][0]
+    assert same["n_target"] == 1000
+    # the batch sheets flip more: unique detectors reject most batch originals
+    assert sess[0]["fixed"]["hamming"][0.05] > 0.5
+    assert same["fixed"]["hamming"][0.05] < 0.15
+
+
+def test_run_adds_scantrust_rows_when_configured():
+    rng = np.random.default_rng(10)
+    cb = _codebook(rng)
+    files = {k: _file(rng, cb, np.arange(1, 289)) for k in "abc"}
+    cfg = _small_config()
+    cfg["scantrust"] = {"unique_seeds": 1, "batch_groups": [0, 1, 2, 3]}
+    cfg["recal_K"] = [20, 100]  # 100 = two whole batch templates
+    cfg["predictions"]["recalibration"]["K"] = 100
+    cfg["predictions"]["mask_vs_count_scantrust"] = {"alpha": 0.05, "max_ratio": 0.5}
+    res = c2a.run(cfg, files.__getitem__, lambda m: None, _scantrust(rng, 1.3))
+    assert {"scantrust_same", "scantrust_sheets", "scantrust_session"} <= set(res["changes"])
+    assert len(res["changes"]["scantrust_sheets"]["pairs"]) == 12
+    import json
+
+    from experiments.e0_sanity import _round
+
+    written = json.loads(json.dumps(_round({"config": cfg, **res}, 5)))
+    pred = c2a.predictions(written, cfg)
+    assert "mask_vs_count_scantrust" in pred
+    assert "scantrust_sheets" in pred["recalibration"]["share_per_change"]

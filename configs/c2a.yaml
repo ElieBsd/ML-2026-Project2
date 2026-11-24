@@ -1,4 +1,4 @@
-# Transfer of thresholds set on originals (Indigo). Originals only: no file of fakes
+# Transfer of thresholds set on originals (Indigo, then Scantrust). Originals only: no file of fakes
 # is opened. Each change lists its groups; a group is the unit of the change (one couple
 # of sessions, one phone...). A pair is (reference file, target file), ref != target,
 # or (file, file) in a `same_file` group. Session 0 files hold templates 1..720 only.
@@ -137,6 +137,10 @@ changes:
         mobile_original_iPhone12Pro_run4,
         mobile_original_iPhone12Pro_run6]
 
+scantrust:       # originals only; blocks are fixed in the script (see its docstring)
+  unique_seeds: 10                 # draws of E, M, S, T_orig in unique_cdp
+  batch_groups: [0, 1, 2, 3, 4]    # groups of 10 batch_cdp templates (5 sheets each)
+
 figure: {alpha: 0.05, K: 100, scores: [hamming, masked_hamming]}
 
 predictions:     # written down on 2026-11-10, before any run
@@ -144,3 +148,4 @@ predictions:     # written down on 2026-11-10, before any run
   between_sessions: {alpha: 0.05, high: 0.20, low: 0.01}
   mask_vs_count: {max_ratio: 0.5}
   recalibration: {alpha: 0.05, K: 100, range: [0.02, 0.09], min_share: 0.9}
+  mask_vs_count_scantrust: {alpha: 0.05, max_ratio: 0.5}   # the mask does not help there
