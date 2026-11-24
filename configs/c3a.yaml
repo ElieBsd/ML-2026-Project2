@@ -1,0 +1,33 @@
+# Fake-free scores at the operating points (thesis Table 5.3, one comparison row).
+# Codebook from block E, binned_mahalanobis fitted on block M, conformal thresholds on
+# originals only (block S, or the other half of the test range at the test stage).
+data_dir: dataset
+seed: 0
+mu: 0.01            # masked_hamming (thesis p. 107)
+n_boot: 2000        # bootstrap on templates, batch_cdp
+# Commit of the methods freeze (2026-11-25). --stage test refuses to run without it.
+freeze_commit: null
+
+indigo:
+  mobile:
+    devices: [iPhone12Pro, SamsungGN20U]
+    capture_run: 1
+    alphas: [0.01, 0.05]
+  scanner:
+    printers: [HPI55, HPI76]
+    fakes: [HPI55_EHPI55, HPI55_EHPI76, HPI76_EHPI55, HPI76_EHPI76]   # printer_estimate
+    alphas: [0.05]
+
+scantrust:
+  unique:
+    n_seeds: 20
+    attacks: [otsu, otsu+unsharp, deep, deep+unsharp]
+    alphas: [0.01, 0.05, 0.10]
+  batch:
+    attacks: [otsu, otsu+unsharp, deep+unsharp]   # the deep folder duplicates otsu
+    alphas: [0.05, 0.10]
+
+predictions:        # written down on 2026-11-10, before any run
+  replication: {device: iPhone12Pro, alpha: 0.05, max_masked: 0.02, min_hamming: 0.50}
+  operating_point: {device: SamsungGN20U, alpha: 0.01, min_p_fa: 0.50}
+  averaging_breaks_mask: {attack: otsu+unsharp, alpha: 0.05}
