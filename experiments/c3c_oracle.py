@@ -356,6 +356,30 @@ def run_cell(cell: Cell, cfg: dict, memo: dict, rng) -> dict:
     }
 
 
+def c_sensitivity(cell: Cell, cfg: dict, rng) -> dict:
+    """Sensitivity of a row to the penalty: the row refit with each C of the grid in turn.
+
+    Nothing is chosen here and no prediction reads it: it only shows how much the P_fa
+    of the logistic moves with a setting that cannot be tuned for a new condition
+    without its fakes. Returns {C: {fake type: measures}}.
+    """
+    J, T = cell.judged, cell.train
+    out = {}
+    for C in cfg["Cs"]:
+        fits = [
+            fit_oracle(T, cell.types, np.sort(np.asarray(T.train_ids(k))), {**cfg, "Cs": [C]})
+            for k in range(len(J.parts))
+        ]
+        res = evaluate(
+            J,
+            lambda k, imgs, fits=fits: {"logistic": oracle_scores(fits[k], J, imgs)["logistic"]},
+            rng,
+            cfg["n_boot"],
+        )
+        out[str(float(C))] = res["logistic"]
+    return out
+
+
 def run_cells(conds: dict, cells: list, cfg: dict, rng, log) -> dict:
     """Fake-free scores and every oracle row, for each judged condition."""
     memo = {}
@@ -368,6 +392,9 @@ def run_cells(conds: dict, cells: list, cfg: dict, rng, log) -> dict:
             )
             out[J.name] = {"unit": J.unit, "info": J.info, "fake_free": ff, "oracle": {}}
         r = run_cell(cell, cfg, memo, rng)
+        if set(cell.relation.values()) & set(cfg.get("c_sensitivity", [])):
+            # its own generator: the other numbers do not depend on this extra row
+            r["logistic_by_C"] = c_sensitivity(cell, cfg, np.random.default_rng(cfg["seed"] + 1))
         out[J.name]["oracle"][cell.row] = r
         log(_line(J.name, cell.row, r, out[J.name]["fake_free"]))
     return out

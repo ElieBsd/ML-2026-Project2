@@ -6,7 +6,8 @@ masked_hamming counts flips only on the symbols that originals almost never get 
 originals of the tested condition, whose templates are never judged (blocks E and M);
 the back-off masses are chosen by log-loss on originals (two halves of E + M). Both
 scores use the same positions, at distance >= 2 from the border. The thesis score
-(3x3 codebook from E only, all interior symbols) is reported alongside.
+(3x3 codebook from E only, all interior symbols) is reported alongside, and so is the
+plain flip rate on the positions of the masks (trivial baseline).
 
 Thresholds: conformal, set on originals only (block S, or the other half of the test
 range for the cross-conformal threshold at the test stage). Measures: P_fa at the
@@ -55,7 +56,8 @@ from experiments.e0_sanity import _round, git_state
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results"
-SCORES = ("mask_5x5", "mask_3x3", "thesis_mask_3x3_E")
+SCORES = ("mask_5x5", "mask_3x3", "thesis_mask_3x3_E", "hamming_same_positions")
+BASELINE = "hamming_same_positions"  # trivial baseline: flip rate on the positions of the masks
 CHUNK = 64
 
 
@@ -112,6 +114,7 @@ class Masks:
             t, b = imgs.t[s : s + CHUNK], imgs.bits[s : s + CHUNK]
             idx = cx.context_index(t, cx.TOP_BITS, self.margin)
             d = cx.crop(t != b, self.margin)
+            out[BASELINE][s : s + len(t)] = d.reshape(len(t), -1).mean(1)
             for name, bits in (("mask_5x5", 25), ("mask_3x3", 9)):
                 mask = cx.backoff_predict(self.counts, self.masses, idx, bits) <= self.mu
                 sym = mask.sum((1, 2))
@@ -307,6 +310,7 @@ def run_scantrust(data_dir: Path, cfg: dict, stage: str, rng, log) -> dict:
     orig = all_imgs.take(is_orig)
     fakes = {a: all_imgs.take((r["attack"] == a).fillna(False).to_numpy()) for a in sc["attacks"]}
     groups = [0] if stage == "dev" else [1, 2, 3, 4]
+    rng_baseline = np.random.default_rng(cfg["seed"] + 1)  # keeps the draws of the masks unchanged
     per_fold = {}
     for g in groups:
         fold = batch_fold(g)
@@ -355,7 +359,11 @@ def run_scantrust(data_dir: Path, cfg: dict, stage: str, rng, log) -> dict:
                 rk[f"alpha_{al}"] = {
                     "p_miss": float(miss_t.mean()),
                     "p_fa": float(fa_t.mean()),
-                    "p_fa_ci_template_bootstrap": list(bootstrap_mean_ci(fa_t, rng, cfg["n_boot"])),
+                    "p_fa_ci_template_bootstrap": list(
+                        bootstrap_mean_ci(
+                            fa_t, rng_baseline if k == BASELINE else rng, cfg["n_boot"]
+                        )
+                    ),
                     "p_fa_per_template": fa_t.tolist(),
                     "n_templates": len(fa_t),
                 }

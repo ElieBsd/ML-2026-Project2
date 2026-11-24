@@ -68,7 +68,7 @@ def git_state() -> str:
             ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
         ).stdout.strip()
         dirty = subprocess.run(
-            ["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True
+            ["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True, check=False
         ).stdout
         return commit + ("-dirty" if dirty.strip() else "")
     except (OSError, subprocess.CalledProcessError):

@@ -9,6 +9,9 @@ n_boot: 2000                 # bootstrap over templates (batch_cdp)
 mu: 0.01                     # masked_hamming: patterns with P_b <= mu
 Cs: [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]   # grid of the inverse penalty C
 n_splits: 5                  # folds grouped by template to choose C
+# Rows refit with every C of the grid, reported next to the row with the chosen C
+# (sensitivity only: nothing is chosen on it, no prediction reads it)
+c_sensitivity: [other_session]
 indigo:
   mobile: {devices: [iPhone12Pro, SamsungGN20U], capture: 1, estimate: EHPI55, alphas: [0.01, 0.05]}
   scanner:

@@ -12,6 +12,7 @@ indigo:
   mobile:
     devices: [iPhone12Pro, SamsungGN20U]
     capture_run: 1
+    range_capture_runs: [2, 3, 4, 5, 6]   # only the range of P_fa and P_miss over captures
     alphas: [0.01, 0.05]
   scanner:
     printers: [HPI55, HPI76]

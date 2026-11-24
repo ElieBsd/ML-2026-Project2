@@ -11,7 +11,8 @@ Table 5.3 of Tutt 2025). Flip rate of originals and of each kind of fake in each
 8 reliability classes.
 
 Data and blocks:
-- Indigo phones (capture 1) and scanner (both printers, four kinds of fakes): blocks E,
+- Indigo phones (capture 1; the other captures only give a range of P_fa and P_miss)
+  and scanner (both printers, four kinds of fakes): blocks E,
   M, S, V at the development stage; at the test stage E and M from development
   templates and the cross-conformal threshold between the two halves of the test range.
   Clopper-Pearson intervals.
@@ -247,27 +248,75 @@ def run_indigo_condition(setting, orig: Counts, fakes: dict, alphas, cfg, stage,
 
 def run_indigo(data_dir: Path, cfg: dict, stage: str, log) -> dict:
     pack = data_dir / "indigo_compact"
-    out = {}
-    mob = cfg["indigo"]["mobile"]
-    for dev in mob["devices"]:
-        run = mob["capture_run"]
-        log(f"Indigo mobile {dev}, capture {run}")
-        orig = load_indigo(pack, f"mobile_original_{dev}_run{run}", stage, "original")
-        fake = load_indigo(pack, f"mobile_fake_EHPI55_{dev}_run{run}", stage, "fake")
-        out[f"mobile_{dev}"] = run_indigo_condition(
-            "mobile", orig, {"EHPI55": fake}, mob["alphas"], cfg, stage, log
+    mob, sc = cfg["indigo"]["mobile"], cfg["indigo"]["scanner"]
+    main_run = mob["capture_run"]
+    runs = [main_run, *mob.get("range_capture_runs", [])]
+    # Every file is read and checked before the first score, so that a missing file or a
+    # missing pcor stops the run before any number is shown.
+    phones = {
+        (dev, run): (
+            load_indigo(pack, f"mobile_original_{dev}_run{run}", stage, "original"),
+            load_indigo(pack, f"mobile_fake_EHPI55_{dev}_run{run}", stage, "fake"),
         )
-    sc = cfg["indigo"]["scanner"]
+        for dev in mob["devices"]
+        for run in runs
+    }
     fakes = {
         f"f{p[3:]}/{e[4:]}": load_indigo(pack, f"base_fake_{p}_{e}", stage, "fake")
         for p, e in (f.split("_") for f in sc["fakes"])
     }
+    originals = {
+        printer: load_indigo(pack, f"base_original_{printer}", stage, "original")
+        for printer in sc["printers"]
+    }
+    if stage == "test":
+        for (dev, run), (_, fake) in phones.items():
+            check_pcor(fake, f"mobile {dev} capture {run}")
+        for name, fake in fakes.items():
+            check_pcor(fake, f"scanner {name}")
+    out = {}
+    for dev in mob["devices"]:
+        for run in runs:
+            log(f"Indigo mobile {dev}, capture {run}")
+            orig, fake = phones[(dev, run)]
+            key = f"mobile_{dev}" if run == main_run else f"mobile_{dev}_capture{run}"
+            out[key] = run_indigo_condition(
+                "mobile", orig, {"EHPI55": fake}, mob["alphas"], cfg, stage, log
+            )
     for printer in sc["printers"]:
         log(f"Indigo scanner, originals {printer}")
-        orig = load_indigo(pack, f"base_original_{printer}", stage, "original")
         out[f"scanner_{printer}"] = run_indigo_condition(
-            "scanner", orig, fakes, sc["alphas"], cfg, stage, log
+            "scanner", originals[printer], fakes, sc["alphas"], cfg, stage, log
         )
+    return out
+
+
+def capture_range(indigo: dict, cfg: dict) -> dict:
+    """Smallest and largest P_fa and realized P_miss over the phone captures, per score.
+
+    Capture capture_run gives the reported numbers; the other captures only give this
+    range. No prediction and no comparison is attached to it.
+    """
+    mob = cfg["indigo"]["mobile"]
+    runs = [mob["capture_run"], *mob.get("range_capture_runs", [])]
+    out = {}
+    for dev in mob["devices"]:
+        keys = [
+            f"mobile_{dev}" if r == mob["capture_run"] else f"mobile_{dev}_capture{r}" for r in runs
+        ]
+        out[dev] = {"captures": runs}
+        for k in SCORES:
+            out[dev][k] = {}
+            for a in mob["alphas"]:
+                rows = [indigo[key]["fakes"]["EHPI55"][k][f"alpha_{a}"] for key in keys]
+                fa, miss = [r["p_fa"] for r in rows], [r["p_miss"] for r in rows]
+                out[dev][k][f"alpha_{a}"] = {
+                    "p_fa_min": min(fa),
+                    "p_fa_max": max(fa),
+                    "p_miss_min": min(miss),
+                    "p_miss_max": max(miss),
+                    "n_fakes": [r["n_fakes"] for r in rows],
+                }
     return out
 
 
@@ -407,6 +456,7 @@ def run_batch(allc: Counts, r, cfg: dict, stage: str, rng, log) -> dict:
                             bootstrap_mean_ci(fa, rng, cfg["n_boot"])
                         ),
                         "p_fa_per_template": fa.tolist(),
+                        "p_miss_per_template": miss.tolist(),
                         "n_templates": len(fa),
                     }
                     if name == "conformal":
@@ -486,9 +536,12 @@ def check_freeze_commit(sha) -> None:
 
 def run(data_dir: Path, cfg: dict, stage: str, log) -> dict:
     rng = np.random.default_rng(cfg["seed"])
+    log("Scantrust: reading")
+    allc, r = scantrust_sets(data_dir, stage)  # read before any score is shown
+    if np.isnan(allc.pcor).any():
+        raise SystemExit("Scantrust: pcor is missing for some images")
     result = {"indigo": run_indigo(data_dir, cfg, stage, log)}
-    log("Scantrust")
-    allc, r = scantrust_sets(data_dir, stage)
+    result["indigo_capture_range"] = capture_range(result["indigo"], cfg)
     log("Scantrust unique_cdp")
     result["scantrust_unique"] = run_unique(allc, r, cfg, stage, log)
     log("Scantrust batch_cdp")
@@ -518,6 +571,9 @@ def main(argv: list[str] | None = None, run_fn=run) -> int:
     result = {"experiment": "c3a_detection", "stage": args.stage, "git": git_state(), "config": cfg}
     result.update(run_fn(ROOT / cfg["data_dir"], cfg, args.stage, log))
     result["predictions"] = predictions(result, cfg)
+    result["predictions_status"] = (
+        "judged (test stage)" if args.stage == "test" else "indication only (development)"
+    )
     result["seconds"] = round(time.time() - start)
     out.parent.mkdir(exist_ok=True)
     with out.open("x" if args.stage == "test" else "w") as f:

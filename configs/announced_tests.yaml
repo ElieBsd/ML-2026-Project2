@@ -1,0 +1,23 @@
+# Paired tests and predictions fixed before the test stage (2026-11-25). The script reads
+# the test-stage result files of the detection, vote, capture-fusion and context-mask
+# experiments; it reads no image. All tests are two-sided.
+alpha: 0.05                                  # target P_miss of comparisons 1-4 and 6
+phones: [iPhone12Pro, SamsungGN20U]          # comparison 1
+averaging_attacks: [otsu+unsharp, deep+unsharp]   # comparisons 2 and 4 use the first one, 3 both
+best_of_3: {device: SamsungGN20U, alpha: 0.01}    # comparison 5
+context_mask_phone: SamsungGN20U             # comparison 6
+
+predictions:        # written down on 2026-11-10, before any run
+  # vote test: at equal P_miss (threshold on the test originals), accepts fewer than half
+  # as many fakes as hamming, and the paired Wilcoxon test on the P_fa per template is
+  # significant
+  vote: {attack: otsu+unsharp, alpha: 0.05, max_ratio: 0.5, max_p_value: 0.05}
+  # minimum of 3 captures
+  best_of_3: {device: SamsungGN20U, alpha: 0.01, max_p_fa: 0.10, max_p_miss: 0.04}
+  # 5x5 mask against 3x3 mask on the same positions: lower P_fa on one phone, not higher
+  # on the other, and not lower against the averaging attacks
+  context_mask:
+    alpha: 0.05
+    lower_on: SamsungGN20U
+    not_higher_on: iPhone12Pro
+    batch_attacks: [otsu+unsharp, deep+unsharp]

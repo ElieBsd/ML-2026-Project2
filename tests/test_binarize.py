@@ -28,7 +28,7 @@ def test_otsu_k1():
 
 
 def test_vote_threshold_9_of_16():
-    a =np.zeros((4, 4), np.float32)
+    a = np.zeros((4, 4), np.float32)
     a.ravel()[:9] = 1.0  # 9 white pixels -> white
     b = np.zeros((4, 4), np.float32)
     b.ravel()[:7] = 1.0  # 7 white pixels -> black
