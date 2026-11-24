@@ -1,0 +1,146 @@
+# Transfer of thresholds set on originals (Indigo). Originals only: no file of fakes
+# is opened. Each change lists its groups; a group is the unit of the change (one couple
+# of sessions, one phone...). A pair is (reference file, target file), ref != target,
+# or (file, file) in a `same_file` group. Session 0 files hold templates 1..720 only.
+data_dir: dataset
+seed: 0
+sizes: {E: 50, M: 200, S: 400}   # enrolment in the reference condition
+mu: 0.01                         # masked_hamming (thesis p. 107)
+alphas: [0.01, 0.05, 0.10]
+recal_K: [20, 50, 100, 200]
+recal_draws: 50
+band_level: 0.90                 # Beta band of the realized P_miss
+
+changes:
+  none:          # same file, other templates
+    groups:
+      - {name: HPI55_session1, same_file: true, files: [variability_HPI55_session1_print1_scan1,
+          variability_HPI55_session1_print2_scan1,
+          variability_HPI55_session1_print3_scan1,
+          variability_HPI55_session1_print4_scan1,
+          variability_HPI55_session1_print5_scan1,
+          variability_HPI55_session1_print6_scan1,
+          variability_HPI55_session1_print7_scan1,
+          variability_HPI55_session1_print8_scan1,
+          variability_HPI55_session1_print9_scan1,
+          variability_HPI55_session1_print10_scan1]}
+      - {name: HPI76_session1, same_file: true, files: [variability_HPI76_session1_print1_scan1,
+          variability_HPI76_session1_print2_scan1,
+          variability_HPI76_session1_print3_scan1]}
+      - {name: iPhone, same_file: true, files: [mobile_original_iPhone12Pro_run1,
+          mobile_original_iPhone12Pro_run2,
+          mobile_original_iPhone12Pro_run3,
+          mobile_original_iPhone12Pro_run4,
+          mobile_original_iPhone12Pro_run5,
+          mobile_original_iPhone12Pro_run6]}
+      - {name: Samsung, same_file: true, files: [mobile_original_SamsungGN20U_run1,
+          mobile_original_SamsungGN20U_run2,
+          mobile_original_SamsungGN20U_run3,
+          mobile_original_SamsungGN20U_run4,
+          mobile_original_SamsungGN20U_run5,
+          mobile_original_SamsungGN20U_run6]}
+  pages:         # pages 1-5 -> pages 6-10 of the same print run
+    ref_pages: [1, 5]
+    target_pages: [6, 10]
+    groups:
+      - {name: HPI55_session1, same_file: true, files: [variability_HPI55_session1_print2_scan1,
+          variability_HPI55_session1_print5_scan1,
+          variability_HPI55_session1_print8_scan1]}
+  scan:          # print run 1, session 1: scan i -> scan j
+    groups:
+      - name: HPI55_session1_print1
+        refs: &scans [variability_HPI55_session1_print1_scan1,
+        variability_HPI55_session1_print1_scan2,
+        variability_HPI55_session1_print1_scan3,
+        variability_HPI55_session1_print1_scan4]
+        targets: *scans
+  capture:       # same phone, capture i -> capture j
+    groups:
+      - name: iPhone
+        refs: &iphone [mobile_original_iPhone12Pro_run1,
+        mobile_original_iPhone12Pro_run2,
+        mobile_original_iPhone12Pro_run3,
+        mobile_original_iPhone12Pro_run4,
+        mobile_original_iPhone12Pro_run5,
+        mobile_original_iPhone12Pro_run6]
+        targets: *iphone
+      - name: Samsung
+        refs: &samsung [mobile_original_SamsungGN20U_run1,
+        mobile_original_SamsungGN20U_run2,
+        mobile_original_SamsungGN20U_run3,
+        mobile_original_SamsungGN20U_run4,
+        mobile_original_SamsungGN20U_run5,
+        mobile_original_SamsungGN20U_run6]
+        targets: *samsung
+  print_run:     # session 1: print run i -> print run j
+    groups:
+      - name: HPI55_session1
+        refs: &p55 [variability_HPI55_session1_print1_scan1,
+        variability_HPI55_session1_print2_scan1,
+        variability_HPI55_session1_print3_scan1,
+        variability_HPI55_session1_print4_scan1,
+        variability_HPI55_session1_print5_scan1,
+        variability_HPI55_session1_print6_scan1,
+        variability_HPI55_session1_print7_scan1,
+        variability_HPI55_session1_print8_scan1,
+        variability_HPI55_session1_print9_scan1,
+        variability_HPI55_session1_print10_scan1]
+        targets: *p55
+      - name: HPI76_session1
+        refs: &p76 [variability_HPI76_session1_print1_scan1,
+        variability_HPI76_session1_print2_scan1,
+        variability_HPI76_session1_print3_scan1]
+        targets: *p76
+  session:       # one group per couple of sessions and printer
+    groups:
+      - {name: HPI55_1_to_0, refs: *p55, targets: [variability_HPI55_session0_print1_scan1]}
+      - {name: HPI55_1_to_2, refs: *p55, targets: [variability_HPI55_session2_print1_scan1]}
+      - name: HPI55_0_to_1
+        refs: &s0_55 [variability_HPI55_session0_print1_scan1,
+        variability_HPI55_session0_print1_scan2,
+        variability_HPI55_session0_print1_scan3]
+        targets: [variability_HPI55_session1_print2_scan1,
+        variability_HPI55_session1_print5_scan1,
+        variability_HPI55_session1_print8_scan1]
+      - {name: HPI55_0_to_2, refs: *s0_55, targets: [variability_HPI55_session2_print1_scan1]}
+      - {name: HPI76_1_to_0, refs: *p76, targets: [variability_HPI76_session0_print1_scan1]}
+      - {name: HPI76_1_to_2, refs: *p76, targets: [variability_HPI76_session2_print1_scan1]}
+      - name: HPI76_0_to_1
+        refs: &s0_76 [variability_HPI76_session0_print1_scan1,
+        variability_HPI76_session0_print1_scan2,
+        variability_HPI76_session0_print1_scan3]
+        targets: *p76
+      - {name: HPI76_0_to_2, refs: *s0_76, targets: [variability_HPI76_session2_print1_scan1]}
+  printer:       # session 1, HPI55 <-> HPI76
+    groups:
+      - name: HPI55_to_HPI76
+        refs: &p55_some [variability_HPI55_session1_print1_scan1,
+        variability_HPI55_session1_print4_scan1,
+        variability_HPI55_session1_print7_scan1,
+        variability_HPI55_session1_print10_scan1]
+        targets: *p76
+      - {name: HPI76_to_HPI55, refs: *p76, targets: *p55_some}
+  phone:         # iPhone <-> Samsung
+    groups:
+      - name: iPhone_to_Samsung
+        refs: &i_odd [mobile_original_iPhone12Pro_run1,
+        mobile_original_iPhone12Pro_run3,
+        mobile_original_iPhone12Pro_run5]
+        targets: &s_even [mobile_original_SamsungGN20U_run2,
+        mobile_original_SamsungGN20U_run4,
+        mobile_original_SamsungGN20U_run6]
+      - name: Samsung_to_iPhone
+        refs: [mobile_original_SamsungGN20U_run1,
+        mobile_original_SamsungGN20U_run3,
+        mobile_original_SamsungGN20U_run5]
+        targets: [mobile_original_iPhone12Pro_run2,
+        mobile_original_iPhone12Pro_run4,
+        mobile_original_iPhone12Pro_run6]
+
+figure: {alpha: 0.05, K: 100, scores: [hamming, masked_hamming]}
+
+predictions:     # written down on 2026-11-10, before any run
+  same_run: {alpha: 0.05, min_share: 0.8, groups: [HPI55_session1, HPI76_session1]}
+  between_sessions: {alpha: 0.05, high: 0.20, low: 0.01}
+  mask_vs_count: {max_ratio: 0.5}
+  recalibration: {alpha: 0.05, K: 100, range: [0.02, 0.09], min_share: 0.9}

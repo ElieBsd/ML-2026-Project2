@@ -34,3 +34,13 @@ def setup() -> None:
             "axes.spines.right": False,
         }
     )
+
+
+# Fig. 2: one colour per score (marker shapes differ too).
+C2_SCORE_COLORS = {
+    "hamming": "#7f7f7f",
+    "masked_hamming": "#2a78d6",
+    "centered_z": "#a05195",
+    "pll": "#eb6834",
+    "binned_mahalanobis": "#1baf7a",
+}
