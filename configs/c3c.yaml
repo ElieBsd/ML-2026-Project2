@@ -1,0 +1,38 @@
+# Supervised detectors trained on real fakes: ORACLE references, not fake-free methods.
+# Logistic regression on the 8 per-class deviations binned_z, and lrt_plugin with the flip
+# probabilities of fakes learned on the training fakes. Codebook (features) and threshold
+# always from originals of the judged condition; only the model weights and Q_b come from
+# the training fakes. Next to them: hamming and masked_hamming on the same images.
+data_dir: dataset
+seed: 0                      # draw of block E (Indigo, unique_cdp), folds of C, bootstrap
+n_boot: 2000                 # bootstrap over templates (batch_cdp)
+mu: 0.01                     # masked_hamming: patterns with P_b <= mu
+Cs: [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]   # grid of the inverse penalty C
+n_splits: 5                  # folds grouped by template to choose C
+indigo:
+  mobile: {devices: [iPhone12Pro, SamsungGN20U], capture: 1, estimate: EHPI55, alphas: [0.01, 0.05]}
+  scanner:
+    printers: [HPI55, HPI76]   # printer of the originals
+    # fake types: [printer that reprinted the fake, prints the estimate was made from]
+    fakes: [[HPI55, EHPI55], [HPI55, EHPI76], [HPI76, EHPI55], [HPI76, EHPI76]]
+    alphas: [0.05]
+scantrust:
+  batch_attacks: [otsu, otsu+unsharp, deep+unsharp]
+  unique_attacks: [otsu, otsu+unsharp, deep, deep+unsharp]   # training of the other-session row
+  alphas: [0.05, 0.10]
+# Commit of the methods freeze (2026-11-25). --stage test refuses to run without it.
+freeze_commit: null
+# Prediction written before any run, judged on the test templates only (development:
+# reported as an indication, no decision). At the target P_miss of 5 % (conformal threshold):
+# - same condition: in every cell where the training and the judged fakes come from the
+#   same phone, the same reprinting printer or the same session (fake types not seen in
+#   training included), the logistic accepts at most as many fakes as the better of
+#   hamming and masked_hamming;
+# - other condition: in each of the three cases (trained on unique_cdp and judged on
+#   batch_cdp; trained on fakes reprinted on one printer and judged on fakes reprinted on
+#   the other; trained on one phone and judged on the other), at least one cell where the
+#   logistic accepts more fakes than the better of hamming and masked_hamming.
+prediction:
+  alpha: 0.05
+  fake_free: [hamming, masked_hamming]
+  other_cases: [other_session, other_printer, other_phone]
