@@ -1,0 +1,147 @@
+\documentclass[10pt,conference,compsocconf]{IEEEtran}
+
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% Figures are drawn by the scripts of experiments/ into report/figures/.
+\graphicspath{{figures/}}
+\newcommand{\Pmiss}{P_{\mathrm{miss}}}
+\newcommand{\Pfa}{P_{\mathrm{fa}}}
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+
+\begin{document}
+\title{Beyond \texorpdfstring{$3\times3$}{3x3}: auditing the binary pattern channel for copy detection patterns across prints, sessions and attacks}
+
+\author{
+  Elie Bussod, Gabin Prunet, Antoine Mandly\\
+  \textit{CS-433 Machine Learning, EPFL, Switzerland}
+}
+
+\maketitle
+
+\begin{abstract}
+  \todo{write last: problem, what we measure, main numbers before / after, what it means for provable guarantees.}
+\end{abstract}
+
+% ---------------------------------------------------------------------------- 0.5 page
+\section{Introduction}
+\todo{copy detection patterns and estimation attacks; the binary pattern channel (BPC) model of Tutt~\cite{tutt2025thesis} and its headline result.}
+
+\todo{the precise problem: three assumptions of the model never tested on real data; threshold and $\mu$ chosen on the test set; no confidence intervals; one dataset and one kind of attack.}
+
+\todo{our three contributions and the two datasets~\cite{chaban2022variability,khermaza2021scantrust}. We answer the open questions of the thesis (chap.~7).}
+
+% ---------------------------------------------------------------------------- 0.9 page
+\section{Model and methods}
+\label{sec:methods}
+\todo{BPC: codebook $P_b(\omega)$, assumptions, PLL and mask~\cite{tutt2024tifs,tutt2024provable}.}
+
+\todo{what the $3\times3$ model misses: reproducible part $\rho$, image effect; flip models with a larger context (5$\times$5 table with back-off, comparison models). The idea of a printer model with context comes from halftoning~\cite{pappas1995printer}.}
+
+\todo{thresholds: conformal threshold on originals~\cite{bates2023conformal}, recalibration.}
+
+\todo{a fake is a second pass through the channel (4-line box)~\cite{phanho2014graphical,baras2012eusipco}.}
+
+% ---------------------------------------------------------------------------- 0.6 page
+\section{Data and protocol}
+\label{sec:data}
+\todo{Indigo (mobile, scanner, variability) and Scantrust; what each dataset allows (4-line table).}
+
+\todo{binarization; blocks grouped by template; development subsets; methods frozen before any test fake was read.}
+
+\todo{operating points and intervals: Clopper-Pearson (one image per template), bootstrap on templates for repeated prints~\cite{kish1965survey,cameron2008bootstrap}.}
+
+% ---------------------------------------------------------------------------- 1.5 pages
+\section{Results}
+\label{sec:results}
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{fig1.pdf}
+  \caption{What the $3\times3$ BPC model misses, on originals only.
+    (a)~Share of the flip noise predicted by the BPC that is reproducible from one print
+    of a template to the next (template), reproducible between reads of one print only
+    (print), or new at each capture (capture). Error bars: 95\,\% bootstrap intervals on
+    templates for $\rho$ between prints and between reads. *HPI76: prints of session~1,
+    scans of session~0. Scantrust has no repeated scan, so print and capture are not split.
+    (b)~Log-loss per symbol read (nats, lower is better) of flip models on templates never
+    used for fitting, with 95\,\% bootstrap intervals on templates (most are smaller than
+    the markers). The per-position ceiling uses the other reads of the same template: it is
+    a bound, not a usable model.}
+  \label{fig:noise}
+\end{figure*}
+
+\subsection{What the \texorpdfstring{$3\times3$}{3x3} model misses}
+Under the BPC, which symbols of a template flip is pure chance once their $3\times3$
+patterns are known: two prints of the same template should not flip the same symbols
+more often than the codebook predicts. They do. Between two prints, a share
+$\rho = 0.248$ (95\,\% CI 0.247--0.250) of the flip noise predicted by the BPC is
+reproducible on the Indigo HPI55 printer, 0.190 on HPI76 and 0.232 on Scantrust
+(Fig.~\ref{fig:noise}a), against $|\rho| < 0.0003$ for 200 draws from the BPC on the same
+templates. With four scans of each print, the noise of HPI55 splits into 25\,\% that comes
+with the template, 31\,\% specific to one print and 45\,\% from the scan. The reproducible
+part is almost zero on reliable patterns and largest for patterns with a flip
+probability between 0.3 and 0.7. The flip rate also varies from one image to the next
+8 to 15 times more than the binomial noise on Indigo scans, but only about as much as the
+binomial noise on Scantrust (ratio 0.90, CI 0.75--1.05).
+
+A larger context recovers most of the reproducible part (Fig.~\ref{fig:noise}b). A
+$5\times5$ table that backs off to the $3\times3$ codebook when a context is rare, fitted on
+originals of other templates, cuts the held-out log-loss of the $3\times3$ table by 11.7\,\%
+on Indigo, 10.1\,\% on Scantrust in the same session and 7.3\,\% in another session, and
+roughly halves the reproducible part left over ($\rho$ from 0.246 to 0.138 on Indigo, from
+0.169 to 0.075 on Scantrust). Boosted trees on a $7\times7$ window add little on Indigo but
+more on Scantrust (20.8\,\% and 16.6\,\%). The gain carries over to other print sessions of
+the same printer (13.2\,\% and 11.4\,\%) but not to the other printer (2.7\,\%).
+
+\subsection{A threshold holds for one print run only}
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{fig2.pdf}
+  \caption{\todo{caption of Fig.~2.}}
+  \label{fig:transfer}
+\end{figure*}
+\todo{results of Fig.~\ref{fig:transfer}.}
+
+\subsection{Which test against which attacker}
+\IfFileExists{figures/fig3.pdf}{%
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig3.pdf}
+  \caption{\todo{caption of Fig.~3.}}
+  \label{fig:twopass}
+\end{figure}}{}
+
+\begin{table*}[t]
+  \centering
+  \caption{\todo{$\Pfa$ at the target $\Pmiss$, 95\,\% CI and realized $\Pmiss$.}}
+  \label{tab:detection}
+  \begin{tabular}{lcccccc}
+    \toprule
+    Score & iPhone & Samsung & Scanner (same) & Scanner (other) & otsu+unsharp & deep+unsharp \\
+    \midrule
+    \todo{rows} & & & & & & \\
+    \bottomrule
+  \end{tabular}
+\end{table*}
+\todo{results of Table~\ref{tab:detection}.}
+
+% ---------------------------------------------------------------------------- 0.5 page
+\section{Discussion and limitations}
+\todo{what this changes for provable guarantees; limitations (3 printers, 7 session pairs, 2 phones; Scantrust frame; fakes in one session per dataset); what did not work.}
+
+% ------------------------------------------------- outside the page limit from here on
+\section*{Ethical risks}
+\todo{200 to 400 words: overconfident deployment; stakeholders; how we measured it; what we did about it; dual use.}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\appendix
+\section*{Use of AI tools}
+\todo{written by the team.}
+
+\end{document}
