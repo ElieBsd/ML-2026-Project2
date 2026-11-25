@@ -10,7 +10,7 @@ devices: [iPhone12Pro, SamsungGN20U]
 captures: [1, 2, 3]          # the first one is the single-capture reference
 alphas: [0.01, 0.05]
 # Commit of the methods freeze (2026-11-25). --stage test refuses to run without it.
-freeze_commit: null
+freeze_commit: "7ea1d7b2a39da4622039e3ff5b6484e30b0325eb"
 # Rule set before the run, on development: on Samsung, the minimum of 3 captures
 # (masked Hamming) accepts fewer than 20 % of fakes at a target P_miss of 1 %
 decision: {device: SamsungGN20U, alpha: 0.01, max_p_fa: 0.20}

@@ -6,7 +6,7 @@ seed: 0
 mu: 0.01            # masked_hamming (thesis p. 107)
 n_boot: 2000        # bootstrap on templates, batch_cdp
 # Commit of the methods freeze (2026-11-25). --stage test refuses to run without it.
-freeze_commit: null
+freeze_commit: "7ea1d7b2a39da4622039e3ff5b6484e30b0325eb"
 
 indigo:
   mobile:

@@ -9,10 +9,10 @@ n_boot: 2000                 # bootstrap over templates
 attacks: [otsu, otsu+unsharp, deep+unsharp]
 alphas: [0.05, 0.10]
 # Commit of the methods freeze (2026-11-25). --stage test refuses to run without it.
-freeze_commit: null
+freeze_commit: "7ea1d7b2a39da4622039e3ff5b6484e30b0325eb"
 # Rule set before the run, on development (batch group 0):
 # keep the test if AUC(lrt_vote) >= AUC(hamming) + 0.05 on otsu+unsharp
 decision: {attack: otsu+unsharp, min_gain: 0.05}
 # Test stage only: report the union variant or not (true or false, set from the rule
 # on development; --stage test refuses null)
-union: null
+union: true

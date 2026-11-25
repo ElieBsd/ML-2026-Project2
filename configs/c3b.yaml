@@ -16,7 +16,7 @@ scantrust:
   unique_attacks: [otsu, otsu+unsharp, deep, deep+unsharp]
   batch_attacks: [otsu, otsu+unsharp, deep+unsharp]
 # Commit of the methods freeze (2026-11-25). --stage test refuses to run without it.
-freeze_commit: null
+freeze_commit: "7ea1d7b2a39da4622039e3ff5b6484e30b0325eb"
 # Prediction written before any run, judged on the test templates only (development:
 # reported as an indication, no decision).
 # - phone: on iPhone, the plain per-pattern correlation between predicted and observed

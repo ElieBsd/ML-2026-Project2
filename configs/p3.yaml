@@ -9,7 +9,7 @@ margin: 2
 backoff_masses: [2, 5, 10, 20, 50, 100, 200, 500]   # chosen by log-loss, two halves of E + M
 n_boot: 2000
 # Commit of the methods freeze (2026-11-25). --stage test refuses to run without it.
-freeze_commit: null
+freeze_commit: "7ea1d7b2a39da4622039e3ff5b6484e30b0325eb"
 # Rule set before the run, on development: the 5x5 mask cuts the oracle P_err^min
 # of the 3x3 mask by >= 30 %
 decision: {condition: mobile_SamsungGN20U, min_cut: 0.30}

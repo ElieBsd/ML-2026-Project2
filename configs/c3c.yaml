@@ -24,7 +24,7 @@ scantrust:
   unique_attacks: [otsu, otsu+unsharp, deep, deep+unsharp]   # training of the other-session row
   alphas: [0.05, 0.10]
 # Commit of the methods freeze (2026-11-25). --stage test refuses to run without it.
-freeze_commit: null
+freeze_commit: "7ea1d7b2a39da4622039e3ff5b6484e30b0325eb"
 # Prediction written before any run, judged on the test templates only (development:
 # reported as an indication, no decision). At the target P_miss of 5 % (conformal threshold):
 # - same condition: in every cell where the training and the judged fakes come from the

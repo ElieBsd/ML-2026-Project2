@@ -6,7 +6,7 @@ mu: 0.01                 # masked_hamming (thesis p. 107)
 recal_K: [20, 50, 100]   # target originals for the recalibrated threshold
 recal_draws: 50
 band_level: 0.90         # Beta band of the realized P_miss
-freeze_commit: null      # set at the methods freeze, before --stage test
+freeze_commit: "7ea1d7b2a39da4622039e3ff5b6484e30b0325eb"      # set at the methods freeze, before --stage test
 
 session:                 # scanner: enrolled in session 1, judged in session 0
   reference: variability_{printer}_session1_print1_scan1
