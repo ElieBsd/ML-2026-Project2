@@ -1,6 +1,7 @@
 """Tests of the detection experiment on simulated counts: no data is read."""
 
 import itertools
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -258,23 +259,28 @@ def _no_data(*args, **kwargs):
 
 
 def _config(tmp_path, freeze):
-    text = (
-        (ROOT / "configs" / "c3a.yaml")
-        .read_text()
-        .replace("freeze_commit: null", f"freeze_commit: {freeze}")
+    """The real config with its freeze_commit line replaced, whatever value it holds."""
+    text, n = re.subn(
+        r"^freeze_commit:.*$",
+        f"freeze_commit: {freeze}",
+        (ROOT / "configs" / "c3a.yaml").read_text(),
+        flags=re.MULTILINE,
     )
+    assert n == 1
     p = tmp_path / "c3a.yaml"
     p.write_text(text)
     return p
 
 
-def test_main_test_stage_needs_a_freeze_commit(tmp_path):
-    with pytest.raises(SystemExit):
+def test_main_test_stage_needs_a_freeze_commit(tmp_path, monkeypatch):
+    monkeypatch.setattr(c3a, "RESULTS", tmp_path)  # an existing result must not hide the check
+    with pytest.raises(SystemExit, match="needs freeze_commit"):
         c3a.main(["--config", str(_config(tmp_path, "null")), "--stage", "test"], run_fn=_no_data)
 
 
-def test_main_test_stage_refuses_a_fake_commit(tmp_path):
-    with pytest.raises(SystemExit):
+def test_main_test_stage_refuses_a_fake_commit(tmp_path, monkeypatch):
+    monkeypatch.setattr(c3a, "RESULTS", tmp_path)
+    with pytest.raises(SystemExit, match="not a commit"):
         c3a.main(
             ["--config", str(_config(tmp_path, "deadbeef")), "--stage", "test"], run_fn=_no_data
         )

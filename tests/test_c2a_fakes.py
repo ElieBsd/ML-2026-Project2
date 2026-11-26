@@ -1,6 +1,8 @@
 """Tests of the transfer with fakes on simulated counts: no data is read."""
 
 import itertools
+import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -53,7 +55,16 @@ def test_config_names_the_two_changes():
         ["iPhone12Pro", "SamsungGN20U"],
         ["SamsungGN20U", "iPhone12Pro"],
     ]
-    assert cfg["freeze_commit"] is None
+    # Written at the methods freeze: a full commit hash of this repository.
+    sha = cfg["freeze_commit"]
+    assert re.fullmatch(r"[0-9a-f]{40}", sha)
+    found = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    assert found.returncode == 0
 
 
 def test_dev_threshold_is_the_one_of_reference_originals_of_s():
