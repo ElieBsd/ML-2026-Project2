@@ -1,0 +1,7 @@
+# masked_hamming with three reliability thresholds mu, on development data only. Blocks,
+# codebooks and thresholds come from the detection config below; only mu changes.
+# mu = 0.01 (thesis p. 107) stays the value of every reported number: nothing is chosen here.
+base_config: configs/c3a.yaml
+mus: [0.003, 0.01, 0.03]
+reported_mu: 0.01
+summary_alpha: 0.05
